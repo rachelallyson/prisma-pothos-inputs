@@ -1,0 +1,113 @@
+---
+title: Mutations
+description: Mutation patterns with generated refs — createOne, updateOne, deleteOne, updateMany, deleteMany. The main use case for @rachelallyson/prisma-pothos-inputs.
+---
+
+# Mutations
+
+This page shows how to wire **mutations** using the refs from `registerPothosTypes(builder)`. With `--prisma-client-path` set, those refs are typed as Prisma inputs so you can pass args straight to the client.
+
+The [example schema](https://github.com/rachelallyson/prisma-pothos-inputs/blob/main/examples/pothos/src/schema.ts) implements every pattern below.
+
+## Which refs to use
+
+| Operation   | Args | Generated ref(s) |
+|------------|------|-------------------|
+| **createOne** | `data` (required) | `refs.ModelCreateInputType` |
+| **updateOne** | `where` (required), `data` (required) | `refs.ModelWhereUniqueInputType`, `refs.ModelUpdateInputType` |
+| **deleteOne** | `where` (required) | `refs.ModelWhereUniqueInputType` |
+| **updateMany** | `where` (optional), `data` (required) | `refs.ModelWhereInputType`, `refs.ModelUpdateInputType` |
+| **deleteMany** | `where` (optional) | `refs.ModelWhereInputType` |
+
+For **updateMany** and **deleteMany**, the return type is `{ count: number }` (Prisma’s `BatchPayload`). The generator emits **BatchPayload** and returns **refs.BatchPayloadType** — use it with `t.field` (not `t.prismaField`).
+
+---
+
+## createOne
+
+Single create. Args: `data` with `refs.ModelCreateInputType`. Pass `args.data` straight into `prisma.*.create({ data: args.data })`.
+
+```ts
+createUser: t.prismaField({
+  type: 'User',
+  args: {
+    data: t.arg({ type: refs.UserCreateInputType, required: true }),
+  },
+  resolve: async (_query, _root, args) =>
+    prisma.user.create({ data: args.data }),
+}),
+```
+
+---
+
+## updateOne
+
+Update by unique key. Args: `where` (required), `data` (required). Use `refs.ModelWhereUniqueInputType` and `refs.ModelUpdateInputType`.
+
+```ts
+updateUser: t.prismaField({
+  type: 'User',
+  args: {
+    where: t.arg({ type: refs.UserWhereUniqueInputType, required: true }),
+    data: t.arg({ type: refs.UserUpdateInputType, required: true }),
+  },
+  resolve: async (_query, _root, args) =>
+    prisma.user.update({ where: args.where, data: args.data }),
+}),
+```
+
+---
+
+## deleteOne
+
+Delete by unique key. Args: `where` (required) with `refs.ModelWhereUniqueInputType`.
+
+```ts
+deleteUser: t.prismaField({
+  type: 'User',
+  args: {
+    where: t.arg({ type: refs.UserWhereUniqueInputType, required: true }),
+  },
+  resolve: async (_query, _root, args) =>
+    prisma.user.delete({ where: args.where }),
+}),
+```
+
+---
+
+## updateMany
+
+Batch update: optional `where`, required `data`. Returns `{ count: number }`. Use **refs.BatchPayloadType** with `t.field` (not `t.prismaField`).
+
+```ts
+updateManyUsers: t.field({
+  type: refs.BatchPayloadType,
+  args: {
+    where: t.arg({ type: refs.UserWhereInputType, required: false }),
+    data: t.arg({ type: refs.UserUpdateInputType, required: true }),
+  },
+  resolve: async (_root, args) =>
+    prisma.user.updateMany({ where: args.where ?? {}, data: args.data }),
+}),
+```
+
+---
+
+## deleteMany
+
+Batch delete: optional `where`. Use `t.field` with **refs.BatchPayloadType** and return `prisma.*.deleteMany({ where: args.where ?? {} })`.
+
+```ts
+deleteManyUsers: t.field({
+  type: refs.BatchPayloadType,
+  args: {
+    where: t.arg({ type: refs.UserWhereInputType, required: false }),
+  },
+  resolve: async (_root, args) =>
+    prisma.user.deleteMany({ where: args.where ?? {} }),
+}),
+```
+
+---
+
+For **query** patterns (findUnique, findMany), see [Queries](/queries). For wiring Prisma object types and generation scripts, see [Examples](/examples).

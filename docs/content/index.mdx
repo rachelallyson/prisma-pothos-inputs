@@ -1,0 +1,45 @@
+---
+title: Prisma Pothos Inputs
+description: Generate Pothos schema types from your Prisma schema — scalars, enums, WhereInput, OrderBy, FindManyArgs; Prisma-typed refs so you can pass args straight to the client.
+---
+
+# @rachelallyson/prisma-pothos-inputs
+
+**Generate Pothos schema types from your Prisma schema.**  
+Scalars, enums, filters, OrderBy, FindManyArgs, Create/Update inputs — with optional Prisma-typed refs so you can pass args straight to the client. Built for **Prisma v7** (works with v5/v6).
+
+## What it does
+
+**@rachelallyson/prisma-pothos-inputs** reads your Prisma schema and emits TypeScript that registers types with your [Pothos](https://pothos-graphql.dev/) SchemaBuilder. You get:
+
+- **Scalars** — e.g. `DateTime` (extensible for `JSON`, etc.)
+- **Enums** — every Prisma `enum` plus a shared `SortOrder` (`asc` / `desc`)
+- **Per-model input types** — `WhereInput`, `WhereUniqueInput` (including compound uniques), `OrderByInput` (object shape matching Prisma), `FindManyArgs` (where, orderBy, skip, take), `CreateInput`, `UpdateInput`
+- **Filter inputs** — `StringFilter`, `IntFilter`, `DateTimeFilter`, enum filters, list/relation filters so `WhereInput` matches Prisma's shape
+
+When you pass `--prisma-client-path` (or `prismaClientPath` in the API), the generated refs are typed as `Prisma.UserCreateInput`, `Prisma.PostFindManyArgs`, etc., so resolvers get correct types and you can spread args directly into the Prisma client.
+
+## Quick start
+
+1. **Install:** `npm install @rachelallyson/prisma-pothos-inputs`
+
+2. **Generate Pothos types:**
+
+```bash
+npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma --output-pothos src/__generated__/pothos-inputs.ts
+```
+
+3. **Optional — type refs as Prisma:**
+
+```bash
+npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma --output-pothos src/__generated__/pothos-inputs.ts --prisma-client-path ../../generated/prisma/client.js
+```
+
+4. **In your Pothos schema:** call `registerPothosTypes(builder)` and use the returned refs for args (e.g. `refs.UserCreateInputType`, `refs.PostFindManyArgs`). With `prismaClientPath` set, you can pass args straight to Prisma (e.g. `prisma.post.findMany({ ...query, ...(args.input ?? {}) })`).
+
+## Documentation
+
+- **[Getting started](/getting-started)** — Install, first run, wiring into your Pothos schema.
+- **[API reference](/api-reference)** — Programmatic API and options.
+- **[Examples](/examples)** — Scripts, direct args, generate at startup.
+- **[Type mapping](/type-mapping)** — Prisma → GraphQL mapping.

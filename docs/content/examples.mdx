@@ -1,0 +1,163 @@
+---
+title: Examples
+description: How to use @rachelallyson/prisma-pothos-inputs with Pothos and Prisma.
+---
+
+# Examples
+
+This page shows how to use **@rachelallyson/prisma-pothos-inputs** with Pothos and Prisma.
+
+## Generate script in package.json
+
+Run the CLI after Prisma generate so Pothos types stay in sync with your schema:
+
+```json
+{
+  "scripts": {
+    "generate": "prisma generate && npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma --output-pothos src/__generated__/pothos-inputs.ts --prisma-client-path ../../generated/prisma/client.js"
+  }
+}
+```
+
+Use `--prisma-client-path` with a path **relative to the generated file** so the Prisma import resolves. Then run `npm run generate`.
+
+## Programmatic generation
+
+Generate Pothos TypeScript from a schema and write it to disk:
+
+```ts
+// scripts/generate-pothos.ts
+import { generatePothosFromSchema } from '@rachelallyson/prisma-pothos-inputs';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { dirname, join } from 'path';
+
+const schemaPath = join(process.cwd(), 'prisma', 'schema.prisma');
+const outPath = join(process.cwd(), 'src', '__generated__', 'pothos-inputs.ts');
+
+const schemaSource = readFileSync(schemaPath, 'utf-8');
+const ts = generatePothosFromSchema(schemaSource, {
+  prismaClientPath: '../../generated/prisma/client.js',
+});
+
+mkdirSync(dirname(outPath), { recursive: true });
+writeFileSync(outPath, ts, 'utf-8');
+console.log('Wrote', outPath);
+```
+
+Run with `tsx scripts/generate-pothos.ts` or compile and run with Node.
+
+## Generate at server startup
+
+Use `writePothosInputs` so you don't need a separate generate script. Call it **before** importing your schema:
+
+```ts
+import { writePothosInputs } from '@rachelallyson/prisma-pothos-inputs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+await writePothosInputs({
+  schemaPath: join(__dirname, 'prisma/schema.prisma'),
+  outputPath: join(__dirname, 'src/__generated__/pothos-inputs.ts'),
+  prismaClientPath: '../../generated/prisma/client.js',
+});
+
+const { schema } = await import('./src/schema.js');
+// Start your GraphQL server with schema...
+```
+
+Run the entry point with **tsx** (or similar) so the newly written file is loaded when the schema module is imported.
+
+## Pothos + Prisma: full flow
+
+1. **Generate Pothos types** (scalars, enums, create/update inputs):
+
+```bash
+npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma --output-pothos src/__generated__/pothos-inputs.ts --prisma-client-path ../../generated/prisma/client.js
+```
+
+2. **In your Pothos schema**, call `registerPothosTypes(builder)` and use the returned refs for mutation args:
+
+```ts
+import { registerPothosTypes } from './__generated__/pothos-inputs.js';
+
+const refs = registerPothosTypes(builder);
+
+builder.mutationType({
+  fields: (t) => ({
+    createUser: t.prismaField({
+      type: 'User',
+      args: {
+        data: t.arg({ type: refs.UserCreateInputType, required: true }),
+      },
+      resolve: async (_query, _root, args) =>
+        prisma.user.create({ data: args.data }),
+    }),
+  }),
+});
+```
+
+Because you passed `--prisma-client-path`, `refs.UserCreateInputType` is typed as `InputTypeRef<any, Prisma.UserCreateInput>`, so `args.data` is inferred as `Prisma.UserCreateInput` and you can pass it directly to `prisma.user.create({ data: args.data })`.
+
+## Queries and mutations
+
+- **Queries** (findUnique, findMany): see **[Queries](/queries)** for refs and code.
+- **Mutations** (createOne, updateOne, deleteOne, updateMany, deleteMany): see **[Mutations](/mutations)**.
+
+## Prisma object types and enums
+
+Wire Prisma models with `builder.prismaObject('ModelName', { fields })`. Use generated enum refs for enum fields and the `DateTime` scalar for date fields:
+
+```ts
+builder.prismaObject('User', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    email: t.exposeString('email'),
+    name: t.exposeString('name', { nullable: true }),
+    role: t.expose('role', { type: refs.Role }),
+    createdAt: t.expose('createdAt', { type: 'DateTime' }),
+    posts: t.relation('posts'),
+  }),
+});
+```
+
+## Enums only
+
+If you only want enum registration (e.g. you define input types yourself):
+
+```bash
+npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma --output-pothos-enums src/__generated__/pothos-enums.ts
+```
+
+```ts
+import { registerPothosEnums } from './__generated__/pothos-enums.js';
+
+const enums = registerPothosEnums(builder);
+const Role = enums.Role; // use in t.expose('role', { type: Role }), etc.
+```
+
+## Filtering generated models
+
+To generate types only for a subset of models, use the two-step API and filter before calling `generatePothosSchema`:
+
+```ts
+import { parsePrismaSchema, generatePothosSchema } from '@rachelallyson/prisma-pothos-inputs';
+import { readFileSync, writeFileSync } from 'fs';
+
+const schemaSource = readFileSync('prisma/schema.prisma', 'utf-8');
+const normalized = parsePrismaSchema(schemaSource);
+
+const publicModels = normalized.models.filter(
+  (m) => !m.name.startsWith('Internal') && m.name !== 'AuditLog'
+);
+
+const ts = generatePothosSchema(
+  { models: publicModels, enums: normalized.enums },
+  { prismaClientPath: '../../generated/prisma/client.js' }
+);
+
+writeFileSync('src/__generated__/pothos-inputs.ts', ts);
+```
+
+You can filter enums the same way if needed.

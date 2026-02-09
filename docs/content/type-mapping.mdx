@@ -1,0 +1,57 @@
+---
+title: Type Mapping
+description: How Prisma types map to GraphQL in the generated Pothos output.
+---
+
+# Type mapping
+
+The package generates **Pothos TypeScript** (scalars, enums, CreateInput, UpdateInput, OrderBy input types, WhereInput, filter inputs), not raw SDL. This document describes how Prisma types map to GraphQL in that output. The naming follows **Prisma v7**'s generated client types so your GraphQL schema stays aligned with `Prisma.UserCreateInput`, etc.
+
+## Scalar mapping
+
+| Prisma type | GraphQL type | Built-in? | Notes |
+|-------------|--------------|-----------|--------|
+| `String`    | `String`     | Yes       | |
+| `Int`       | `Int`        | Yes       | |
+| `Float`     | `Float`      | Yes       | |
+| `Boolean`   | `Boolean`    | Yes       | |
+| `DateTime`  | `DateTime`   | No        | Custom scalar; registered by generator. |
+| `Json`      | `JSON`       | No        | Custom scalar. |
+| `Bytes`     | `Bytes`      | No        | Custom scalar. |
+| `BigInt`    | `BigInt`     | No        | Custom scalar. |
+| `Decimal`   | `Decimal`    | No        | Custom scalar. |
+
+Any Prisma field type that is not a known scalar or enum and not another model name is treated as **String** in the generated code.
+
+## Nullability and lists
+
+- **Optional field** (`String?`) → nullable in the input (optional).
+- **Required field** (`String`) → required in CreateInput; optional in UpdateInput.
+- **List** (`String[]`) → list type in filters where applicable.
+- **Optional relation** (`User?`) → nullable object type.
+
+## Enums
+
+Each Prisma `enum` becomes a Pothos enum with the same name and the same value names. For each enum you also get **`<Enum>Filter`** for use in WhereInput (e.g. `equals`, `in`, `notIn`, `not`).
+
+## OrderByInput
+
+For each model, an **input type** is generated (not an enum) with optional `SortOrder` (`asc` / `desc`) per sortable field. The shape matches Prisma's `orderBy` so you can pass `args.orderBy` directly to the client.
+
+## FindManyArgs
+
+For each model, a single **FindManyArgs** input type is generated with optional `where`, `orderBy`, `skip`, and `take`. Use it as the single argument for list fields so you can spread `...(args.input ?? {})` into `prisma.model.findMany()`.
+
+## WhereInput and WhereUniqueInput
+
+- **WhereInput** — AND, OR, NOT plus scalar/enum filters and relation filters. Matches Prisma's WhereInput shape.
+- **WhereUniqueInput** — unique fields (including compound uniques from `@@unique([a, b])`) plus AND, OR, NOT and the same filter fields.
+
+## CreateInput and UpdateInput
+
+- **CreateInput** — scalar and enum fields; `id` optional where applicable; relations via foreign keys (e.g. `authorId`).
+- **UpdateInput** — same fields, all optional, for partial updates.
+
+## Filter inputs
+
+The generator emits **StringFilter**, **IntFilter**, **DateTimeFilter**, **BooleanFilter**, enum filters, **ListRelationFilter**, and **RelationFilter** inputs so WhereInput matches Prisma's filtering API.

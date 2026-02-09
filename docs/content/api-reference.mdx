@@ -1,0 +1,166 @@
+---
+title: API Reference
+description: Programmatic API of @rachelallyson/prisma-pothos-inputs — exports, types, and options.
+---
+
+# API reference
+
+This document describes the programmatic API of **@rachelallyson/prisma-pothos-inputs**: exports, types, and options. The package generates **Pothos** TypeScript (scalars, enums, input types) from a Prisma schema and is built for **Prisma v7**. Generated type names (e.g. `UserCreateInput`, `PostUncheckedCreateInput`) match the Prisma client's `Prisma.*` namespace.
+
+## Entry point
+
+```ts
+import {
+  generatePothosFromSchema,
+  writePothosInputs,
+  parsePrismaSchema,
+  generatePothosSchema,
+  generatePothosEnums,
+  PRISMA_SCALAR_TO_GRAPHQL,
+  CUSTOM_SCALARS,
+} from '@rachelallyson/prisma-pothos-inputs';
+import type {
+  NormalizedSchema,
+  NormalizedModel,
+  NormalizedEnum,
+  GeneratePothosSchemaOptions,
+  WritePothosInputsOptions,
+} from '@rachelallyson/prisma-pothos-inputs';
+```
+
+All paths above are from the main package entry (`@rachelallyson/prisma-pothos-inputs`). The package is ESM-only.
+
+## Functions
+
+### `generatePothosFromSchema(schemaSource, options?)`
+
+Parses the Prisma schema string and returns TypeScript source that exports `registerPothosTypes(builder)` for use with Pothos.
+
+- **Parameters**
+  - `schemaSource` (`string`): Full contents of a Prisma schema file (e.g. from `readFileSync('prisma/schema.prisma', 'utf-8')`).
+  - `options` (`GeneratePothosSchemaOptions`, optional): See GeneratePothosSchemaOptions below.
+- **Returns:** `string` — TypeScript source. Write it to a file (e.g. `src/__generated__/pothos-inputs.ts`) and call `registerPothosTypes(builder)` in your Pothos schema.
+- **Throws:** If the schema is invalid. No file I/O is performed.
+
+**Example:**
+
+```ts
+const ts = generatePothosFromSchema(schemaSource, {
+  prismaClientPath: '../../generated/prisma/client.js',
+});
+```
+
+### `writePothosInputs(options)`
+
+**Async.** Reads the Prisma schema from disk, generates Pothos TypeScript, and writes the output file. Use at server startup so you don't need a separate generate script.
+
+- **Parameters:** `WritePothosInputsOptions` — `schemaPath`, `outputPath`, optional `prismaClientPath`, optional `cwd`.
+- **Returns:** `Promise<void>`.
+
+**Example:**
+
+```ts
+await writePothosInputs({
+  schemaPath: 'prisma/schema.prisma',
+  outputPath: 'src/__generated__/pothos-inputs.ts',
+  prismaClientPath: '../../generated/prisma/client.js',
+});
+```
+
+### `parsePrismaSchema(schemaSource)`
+
+Parses the Prisma schema and returns a normalized representation of models and enums. Does not generate any output.
+
+- **Parameters:** `schemaSource` (`string`): Full contents of a Prisma schema file.
+- **Returns:** `NormalizedSchema`.
+- **Throws:** If the schema is invalid.
+
+### `generatePothosSchema(normalized, options?)`
+
+Generates Pothos TypeScript from an already-parsed schema.
+
+- **Parameters:** `normalized` (`NormalizedSchema`), optional `options` (`GeneratePothosSchemaOptions`).
+- **Returns:** `string` — TypeScript source (same as `generatePothosFromSchema`).
+
+### `generatePothosEnums(normalized)`
+
+Generates TypeScript source that exports `registerPothosEnums(builder)` to register all enums from your Prisma schema.
+
+- **Parameters:** `normalized` (`NormalizedSchema`).
+- **Returns:** `string` — TypeScript source. CLI: `--output-pothos-enums <path>` writes this file directly.
+
+## Constants
+
+### `PRISMA_SCALAR_TO_GRAPHQL`
+
+A `Record<string, string>` mapping Prisma scalar names to GraphQL type names.
+
+### `CUSTOM_SCALARS`
+
+A readonly array of scalar names that the generator registers with the builder (e.g. `DateTime`).
+
+## Types
+
+### `NormalizedSchema`
+
+```ts
+interface NormalizedSchema {
+  models: NormalizedModel[];
+  enums: NormalizedEnum[];
+}
+```
+
+### `NormalizedModel`
+
+```ts
+interface NormalizedModel {
+  name: string;
+  fields: ModelField[];
+  relationNames: string[];
+  compoundUniques?: { key: string; fields: string[] }[];
+}
+```
+
+### `NormalizedEnum`
+
+```ts
+interface NormalizedEnum {
+  name: string;
+  values: string[];
+}
+```
+
+### `GeneratePothosSchemaOptions`
+
+```ts
+interface GeneratePothosSchemaOptions {
+  prismaClientPath?: string;
+}
+```
+
+When set, `prismaClientPath` is the import path to the Prisma client (e.g. `../../generated/prisma/client.js`). The generated file then types input refs as `InputTypeRef<any, Prisma.UserCreateInput>`, etc.
+
+### `WritePothosInputsOptions`
+
+```ts
+interface WritePothosInputsOptions extends GeneratePothosSchemaOptions {
+  schemaPath: string;
+  outputPath: string;
+  cwd?: string;
+}
+```
+
+## Two-step workflow
+
+When you need the normalized data (e.g. to filter models or generate multiple artifacts):
+
+```ts
+const normalized = parsePrismaSchema(schemaSource);
+
+const filtered = {
+  models: normalized.models.filter((m) => !m.name.startsWith('Internal')),
+  enums: normalized.enums,
+};
+
+const ts = generatePothosSchema(filtered, { prismaClientPath: '...' });
+```

@@ -1,0 +1,142 @@
+# Getting started
+
+This guide walks you through installing **@rachelallyson/prisma-pothos-inputs**, generating Pothos types from a Prisma schema, and wiring them into your Pothos schema. The package is built for **Prisma v7** (and works with v5/v6); generated type names match your Prisma client (e.g. `UserCreateInput`, `PostUncheckedCreateInput`).
+
+---
+
+## Prerequisites
+
+- **Node.js** 18 or newer
+- A project with a **Prisma schema** (`schema.prisma`). The package only reads the schema; it does not require a database or the Prisma CLI at runtime.
+- **Pothos** and a Pothos schema builder. Optionally, a generated **Prisma client** if you want input refs typed as Prisma types for passing args directly.
+
+---
+
+## Install
+
+From your project root:
+
+```bash
+npm install @rachelallyson/prisma-pothos-inputs
+```
+
+---
+
+## 1. Have a Prisma schema
+
+You need at least one model or enum. For example, in `prisma/schema.prisma`:
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  posts     Post[]
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+```
+
+---
+
+## 2. Generate Pothos types
+
+**CLI (recommended):**
+
+You must specify at least one of `--output-pothos` or `--output-pothos-enums`.
+
+```bash
+# Full Pothos types (scalars, enums, create/update inputs)
+npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma --output-pothos src/__generated__/pothos-inputs.ts
+```
+
+**Optional: type input refs as Prisma** (so you can pass `args.data` directly to `prisma.user.create({ data: args.data })`). Use a path **relative to the generated file**:
+
+```bash
+npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma --output-pothos src/__generated__/pothos-inputs.ts --prisma-client-path ../../generated/prisma/client.js
+```
+
+**Programmatic:**
+
+```ts
+import { generatePothosFromSchema } from '@rachelallyson/prisma-pothos-inputs';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
+
+const schemaSource = readFileSync('prisma/schema.prisma', 'utf-8');
+const ts = generatePothosFromSchema(schemaSource, {
+  prismaClientPath: '../../generated/prisma/client.js', // optional
+});
+mkdirSync('src/__generated__', { recursive: true });
+writeFileSync('src/__generated__/pothos-inputs.ts', ts);
+```
+
+---
+
+## 3. Use the generated types in Pothos
+
+In your Pothos schema file:
+
+```ts
+import SchemaBuilder from '@pothos/core';
+import { registerPothosTypes } from './__generated__/pothos-inputs.js';
+
+const builder = new SchemaBuilder({ ... });
+
+const refs = registerPothosTypes(builder);
+
+// Use refs.Role, refs.UserCreateInputType, refs.PostCreateInputType, etc.
+builder.mutationType({
+  fields: (t) => ({
+    createUser: t.prismaField({
+      type: 'User',
+      args: {
+        data: t.arg({ type: refs.UserCreateInputType, required: true }),
+      },
+      resolve: async (_query, _root, args) =>
+        prisma.user.create({ data: args.data }),
+    }),
+  }),
+});
+```
+
+If you used `--prisma-client-path`, `args.data` is typed as `Prisma.UserCreateInput` (or the correct unchecked type for relations), so you can pass it straight to Prisma.
+
+---
+
+## 4. Keep in sync
+
+Run the generator after Prisma schema changes. A typical script:
+
+```json
+{
+  "scripts": {
+    "generate": "prisma generate && npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma --output-pothos src/__generated__/pothos-inputs.ts --prisma-client-path ../../generated/prisma/client.js"
+  }
+}
+```
+
+See [Examples](EXAMPLES.md) for more integration patterns.

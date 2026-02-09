@@ -1,0 +1,61 @@
+---
+title: Queries
+description: Query patterns with generated refs — findUnique and findMany. Use the same refs so args stay typed and you can pass them straight to Prisma.
+---
+
+# Queries
+
+This page shows how to wire **queries** using the refs from `registerPothosTypes(builder)`. With `--prisma-client-path` set, those refs are typed as Prisma inputs so you can pass args straight to the client.
+
+The [example schema](https://github.com/rachelallyson/prisma-pothos-inputs/blob/main/examples/pothos/src/schema.ts) implements both patterns below.
+
+## Which refs to use
+
+| Operation   | Args | Generated ref(s) |
+|------------|------|-------------------|
+| **findUnique** | `where` (required) | `refs.ModelWhereUniqueInputType` |
+| **findMany**   | `input` (optional: where, orderBy, skip, take) | `refs.ModelFindManyArgs` |
+
+---
+
+## findUnique
+
+Single record by unique criteria. Use `t.prismaField` and pass the Pothos `query` through so relations/select work.
+
+```ts
+user: t.prismaField({
+  type: 'User',
+  args: {
+    where: t.arg({ type: refs.UserWhereUniqueInputType, required: true }),
+  },
+  resolve: (query, _root, args) =>
+    prisma.user.findUnique({
+      ...query,
+      where: args.where,
+    }),
+}),
+```
+
+---
+
+## findMany
+
+List with optional filters, ordering, and pagination. Use `refs.ModelFindManyArgs` and spread `args.input` into `findMany`.
+
+```ts
+users: t.prismaField({
+  type: ['User'],
+  args: {
+    input: t.arg({ type: refs.UserFindManyArgs, required: false }),
+  },
+  resolve: (query, _root, args) =>
+    prisma.user.findMany({
+      ...query,
+      ...(args.input ?? {}),
+    }),
+}),
+```
+
+---
+
+For **mutation** patterns (createOne, updateOne, deleteOne, updateMany, deleteMany), see [Mutations](/mutations). For generation scripts and wiring Prisma object types, see [Examples](/examples).

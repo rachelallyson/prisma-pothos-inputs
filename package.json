@@ -1,0 +1,78 @@
+{
+  "name": "@rachelallyson/prisma-pothos-inputs",
+  "version": "1.0.0",
+  "description": "Generate Pothos schema types from your Prisma schema — scalars, enums, WhereInput, OrderBy, FindManyArgs; Prisma-typed refs so you can pass args straight to the client.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./bin": {
+      "types": "./dist/bin.d.ts",
+      "import": "./dist/bin.js",
+      "default": "./dist/bin.js"
+    }
+  },
+  "bin": {
+    "prisma-pothos-inputs": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "docs:dev": "cd docs && npm run dev",
+    "docs:build": "cd docs && npm run build",
+    "docs:start": "cd docs && npm run start",
+    "test": "npm run build && node --test dist/parse.test.js dist/index.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "prisma",
+    "prisma-v7",
+    "prisma-7",
+    "graphql",
+    "schema",
+    "generator",
+    "types",
+    "pothos"
+  ],
+  "author": "Rachel Higley",
+  "license": "MIT",
+  "homepage": "https://rachelallyson.github.io/prisma-pothos-inputs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rachelallyson/prisma-pothos-inputs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rachelallyson/prisma-pothos-inputs/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@mrleebo/prisma-ast": "^0.13.1"
+  },
+  "peerDependencies": {
+    "prisma": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "prisma": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.2",
+    "typescript": "^5.9.3"
+  }
+}
