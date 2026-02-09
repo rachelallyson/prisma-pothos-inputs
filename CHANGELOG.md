@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-09
+
+### Added
+
+- **Prisma object builder** — `includePrismaObjects` option for `generatePothosSchema` / `generatePothosFromSchema`. When `true`, generated code registers `builder.prismaObject(modelName, { fields })` for each Prisma model (scalars/enums as `t.expose*`, relations as `t.relation`), so you don’t have to wire object types by hand. Requires `@pothos/plugin-prisma`.
+
 ## [1.0.0] - 2026-02-09
 
 ### Added

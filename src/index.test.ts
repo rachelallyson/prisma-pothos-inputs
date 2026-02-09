@@ -96,6 +96,22 @@ describe('generatePothosFromSchema', () => {
     assert.ok(ts.includes("inputType('RoleFilter'"));
   });
 
+  it('optional DateTime uses DateTimeNullableFilter so nested where deletedAt: { equals: null } works', () => {
+    const schemaWithDeletedAt = `
+      model Widget {
+        id        String    @id @default(cuid())
+        name      String
+        deletedAt DateTime?
+      }
+    `;
+    const ts = generatePothosFromSchema(schemaWithDeletedAt);
+    assert.ok(ts.includes("builder.inputType('DateTimeNullableFilter'"));
+    assert.ok(
+      ts.includes("deletedAt: t.field({ type: 'DateTimeNullableFilter'"),
+      'WidgetWhereInput should use DateTimeNullableFilter for optional deletedAt'
+    );
+  });
+
   it('output contains enum and OrderBy enums', () => {
     const ts = generatePothosFromSchema(schemaWithUserAndPost);
     assert.ok(ts.includes("builder.enumType('Role'"));
@@ -278,6 +294,55 @@ describe('generatePothosFromSchema', () => {
       ts.includes("update: t.field({ type: 'UserUpdateWithoutPostsInput', required: false })"),
       'UpdateOne nested should have update'
     );
+  });
+
+  it('with includePrismaObjects: true emits builder.prismaObject for each model', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      includePrismaObjects: true,
+    });
+    assert.ok(
+      ts.includes("builder.prismaObject('User'"),
+      'should emit builder.prismaObject for User'
+    );
+    assert.ok(
+      ts.includes("builder.prismaObject('Post'"),
+      'should emit builder.prismaObject for Post'
+    );
+    assert.ok(
+      ts.includes("id: t.exposeID('id')"),
+      'User object should expose id as ID'
+    );
+    assert.ok(
+      ts.includes("role: t.expose('role', { type: Role"),
+      'User object should expose role with enum type'
+    );
+    assert.ok(
+      ts.includes("t.relation('posts'") && ts.includes('onNull'),
+      'User object should have posts relation'
+    );
+    assert.ok(
+      ts.includes("t.relation('author'") && ts.includes('onNull'),
+      'Post object should have author relation'
+    );
+  });
+
+  it('list relations get where/orderBy/take/skip args so nested where works', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      includePrismaObjects: true,
+    });
+    assert.ok(
+      ts.includes("where: t.arg({ type: 'PostWhereInput', required: false })"),
+      'User.posts (list relation) should have where arg'
+    );
+    assert.ok(
+      ts.includes("query: (args) => ({") && ts.includes('where: args.where'),
+      'list relation should pass where through query'
+    );
+  });
+
+  it('without includePrismaObjects does not emit builder.prismaObject', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost);
+    assert.ok(!ts.includes('builder.prismaObject('));
   });
 });
 

@@ -56,6 +56,30 @@ users: t.prismaField({
 }),
 ```
 
+All fields on `FindManyArgs` are optional. If you don't care about pagination, the client can omit `skip` and `take` and send only `where` and/or `orderBy` (or an empty object).
+
+### findMany without pagination (where + orderBy only)
+
+If you want a list field that does **not** expose `skip`/`take` at all, use `WhereInput` and `OrderByInput` as separate args instead of `FindManyArgs`:
+
+```ts
+users: t.prismaField({
+  type: ['User'],
+  args: {
+    where: t.arg({ type: refs.UserWhereInputType, required: false }),
+    orderBy: t.arg({ type: refs.UserOrderByInput, required: false }),
+  },
+  resolve: (query, _root, args) =>
+    prisma.user.findMany({
+      ...query,
+      ...(args.where != null && { where: args.where }),
+      ...(args.orderBy != null && { orderBy: args.orderBy }),
+    }),
+}),
+```
+
+This keeps the same filtering and ordering capabilities without exposing pagination in the API.
+
 ---
 
 For **mutation** patterns (createOne, updateOne, deleteOne, updateMany, deleteMany), see [Mutations](/mutations). For generation scripts and wiring Prisma object types, see [Examples](/examples).
