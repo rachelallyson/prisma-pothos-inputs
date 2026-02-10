@@ -185,12 +185,18 @@ Enum name and its enumerator names in order.
 ```ts
 interface GeneratePothosSchemaOptions {
   prismaClientPath?: string;
+  useRelationInputs?: boolean;
+  includePrismaObjects?: boolean;
+  usePrismaJsonTypes?: boolean;
 }
 ```
 
 | Option | Description |
 |--------|-------------|
-| `prismaClientPath` | Import path to the Prisma client (e.g. `../../generated/prisma/client.js`). When set, the generated file imports `Prisma` and types the returned input refs as `InputTypeRef<any, Prisma.UserCreateInput>`, etc., so you can pass `args.data` directly to Prisma in resolvers. |
+| `prismaClientPath` | Import path to the Prisma client (e.g. `../../generated/prisma/client.js`). When set, the generated file imports `Prisma` and types the returned input refs as `InputTypeRef<any, Prisma.UserCreateInput>`, etc. |
+| `useRelationInputs` | When `true`, CreateInput/UpdateInput use nested relation inputs and are typed as Prisma CreateInput/UpdateInput. |
+| `includePrismaObjects` | When `true`, generates `builder.prismaObject(modelName, { fields })` for each model. Requires @pothos/plugin-prisma. |
+| `usePrismaJsonTypes` | When `true` and `includePrismaObjects` is true, Json fields with a `/// [TypeName]` comment use that type name in Pothos. You define the object type; we only reference it by name. See docs: Optional Prisma JSON types. |
 
 ---
 

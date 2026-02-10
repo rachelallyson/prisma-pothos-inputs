@@ -16,7 +16,7 @@ The package generates **Pothos TypeScript** (scalars, enums, CreateInput, Update
 | `Float`     | `Float`      | Yes       | |
 | `Boolean`   | `Boolean`    | Yes       | |
 | `DateTime`  | `DateTime`   | No        | Custom scalar; registered by generator. |
-| `Json`      | `JSON`       | No        | Custom scalar. |
+| `Json`      | `JSON`       | No        | Custom scalar. With **usePrismaJsonTypes** and a `/// [TypeName]` comment, the generated Prisma object can reference that type name instead; you define the object type. See [Optional Prisma JSON types](/prisma-json-types). |
 | `Bytes`     | `Bytes`      | No        | Custom scalar. |
 | `BigInt`    | `BigInt`     | No        | Custom scalar. |
 | `Decimal`   | `Decimal`    | No        | Custom scalar. |
@@ -25,10 +25,12 @@ Any Prisma field type that is not a known scalar or enum and not another model n
 
 ## Nullability and lists
 
-- **Optional field** (`String?`) → nullable in the input (optional).
+- **Optional field** (`String?`) → nullable in inputs and in the object (output).
 - **Required field** (`String`) → required in CreateInput; optional in UpdateInput.
+- **Field with default** (`role Role @default(USER)`) → optional in CreateInput (you can omit it), but **non-nullable in the object** — when you read the row, the value is always present. The generator emits `nullable: false` for required object fields because Pothos v4+ defaults output fields to nullable.
 - **List** (`String[]`) → list type in filters where applicable.
 - **Optional relation** (`User?`) → nullable object type.
+- **List relation** (`Post[]`) → non-null list in the object (`[Post]!`), so client types get `posts: Array<...>` rather than `posts?: Array<...> | null`. List relations also get `where`, `orderBy`, `take`, and `skip` args so nested filters (e.g. `posts(where: { published: true })`) work.
 
 ## Enums
 
@@ -54,4 +56,4 @@ For each model, a single **FindManyArgs** input type is generated with optional 
 
 ## Filter inputs
 
-The generator emits **StringFilter**, **IntFilter**, **DateTimeFilter**, **BooleanFilter**, enum filters, **ListRelationFilter**, and **RelationFilter** inputs so WhereInput matches Prisma's filtering API.
+The generator emits **StringFilter**, **IntFilter**, **DateTimeFilter**, **BooleanFilter**, enum filters, **ListRelationFilter**, and **RelationFilter** inputs so WhereInput matches Prisma's filtering API. Optional `DateTime?` fields use **DateTimeNullableFilter** (which allows `equals: null`) so nested filters like `where: { deletedAt: { equals: null } }` are valid.

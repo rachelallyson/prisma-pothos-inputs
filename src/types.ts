@@ -40,6 +40,8 @@ export interface ModelField {
   relationBackField?: string;
   /** For relations: scalar FK field names from @relation(fields: [authorId], ...) so we can omit them when emitting relation-style CreateInput. */
   relationKeyFields?: string[];
+  /** When set, this Json (or String) field is typed via prisma-json-types-generator; use this name as the Pothos type when usePrismaJsonTypes is on. From schema comment /// [TypeName]. */
+  jsonTypeRef?: string;
 }
 
 /** Compound unique constraint (e.g. @@unique([id, email]) -> key "id_email", fields ["id","email"]). */

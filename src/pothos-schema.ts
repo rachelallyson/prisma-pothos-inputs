@@ -1,3 +1,4 @@
+
 import type { NormalizedSchema, NormalizedModel, NormalizedEnum, ModelField } from './types.js';
 import { CUSTOM_SCALARS } from './types.js';
 
@@ -11,6 +12,8 @@ export interface GeneratePothosSchemaOptions {
   useRelationInputs?: boolean;
   /** When true, generates builder.prismaObject(modelName, { fields }) for each Prisma model so you don't have to wire object types by hand. Requires @pothos/plugin-prisma. */
   includePrismaObjects?: boolean;
+  /** When true and includePrismaObjects is true, Json fields with a /// [TypeName] comment (prisma-json-types-generator) use that type name in Pothos so you can map to your namespace types. Register the type (e.g. builder.objectType('UserProfile', ...)) before calling registerPothosTypes. */
+  usePrismaJsonTypes?: boolean;
 }
 
 /** Generates TypeScript that registers scalars, enums, and input types with a Pothos builder. */
@@ -18,7 +21,7 @@ export function generatePothosSchema(
   normalized: NormalizedSchema,
   options: GeneratePothosSchemaOptions = {}
 ): string {
-  const { prismaClientPath, useRelationInputs = false, includePrismaObjects = false } = options;
+  const { prismaClientPath, useRelationInputs = false, includePrismaObjects = false, usePrismaJsonTypes = false } = options;
   const enumRefs: string[] = [];
   const orderByRefs: string[] = [];
   const inputRefs: string[] = [];
@@ -32,6 +35,7 @@ export function generatePothosSchema(
     ` * Registers scalars, enums, and input types with your Pothos SchemaBuilder.`,
     prismaClientPath ? ` * Input refs are typed as Prisma create/update inputs so you can pass args directly to Prisma.` : '',
     includePrismaObjects ? ` * Also registers Prisma object types (builder.prismaObject) for each model; requires @pothos/plugin-prisma.` : '',
+    usePrismaJsonTypes ? ` * Json fields with /// [TypeName] use that Pothos type name (register it before calling registerPothosTypes).` : '',
     ` */`,
     ``,
   ];
@@ -81,7 +85,7 @@ export function generatePothosSchema(
   objectRefs.push('BatchPayloadType');
   lines.push(`${INDENT}const BatchPayloadType = builder.objectRef<{ count: number }>('BatchPayload').implement({`);
   lines.push(`${INDENT}  fields: (t) => ({`);
-  lines.push(`${INDENT}    count: t.int({ resolve: (parent: { count: number }) => parent.count }),`);
+  lines.push(`${INDENT}    count: t.int({ resolve: (parent: { count: number }) => parent.count, nullable: false }),`);
   lines.push(`${INDENT}  }),`);
   lines.push(`${INDENT}});`);
   lines.push(``);
@@ -600,7 +604,7 @@ export function generatePothosSchema(
       lines.push(`${INDENT}builder.prismaObject('${model.name}', {`);
       lines.push(`${INDENT}  fields: (t) => ({`);
       for (const f of model.fields) {
-        const fieldLines = prismaObjectFieldLines(f, modelsWithOrderBySet);
+        const fieldLines = prismaObjectFieldLines(f, modelsWithOrderBySet, usePrismaJsonTypes);
         for (const line of fieldLines) lines.push(`${INDENT}    ${line}`);
       }
       lines.push(`${INDENT}  }),`);
@@ -640,7 +644,8 @@ export function generatePothosSchema(
 /** Returns one or more lines for a field in builder.prismaObject. List relations get where/orderBy/take/skip args so nested filters work. */
 function prismaObjectFieldLines(
   f: ModelField,
-  modelsWithOrderBy: Set<string>
+  modelsWithOrderBy: Set<string>,
+  usePrismaJsonTypes: boolean
 ): string[] {
   if (f.kind === 'relation') {
     const related = f.relationTo!;
@@ -652,6 +657,7 @@ function prismaObjectFieldLines(
       return [
         `${f.name}: t.relation('${f.name}', {`,
         `  onNull: 'error',`,
+        `  nullable: false,`,
         `  args: {`,
         `    where: t.arg({ type: '${related}WhereInput', required: false }),`,
         orderByArg ? `    ${orderByArg}` : '',
@@ -667,38 +673,43 @@ function prismaObjectFieldLines(
         `}),`,
       ].filter(Boolean);
     }
-    return [`${f.name}: t.relation('${f.name}', { onNull: 'error' }),`];
+    const singleNullable = f.optional ? 'true' : 'false';
+    return [`${f.name}: t.relation('${f.name}', { onNull: 'error', nullable: ${singleNullable} }),`];
   }
-  const line = prismaObjectFieldLineScalarOrEnum(f);
+  const line = prismaObjectFieldLineScalarOrEnum(f, usePrismaJsonTypes);
   return [line];
 }
 
-/** Single-line field for scalars/enums (and single relations handled above). */
-function prismaObjectFieldLineScalarOrEnum(f: ModelField): string {
+/** Single-line field for scalars/enums (and single relations handled above). Object output: nullable only when the field is optional in the schema (can be null in DB), not when it merely has a default. Pothos v4+ defaults output fields to nullable, so we must set nullable: false for required fields. */
+function prismaObjectFieldLineScalarOrEnum(f: ModelField, usePrismaJsonTypes: boolean): string {
+  const nullable = f.optional;
+  const nullOpt = nullable ? ', nullable: true' : ', nullable: false';
+  const nullOptObj = nullable ? ', { nullable: true }' : ', { nullable: false }';
   if (f.kind === 'enum') {
-    return `${f.name}: t.expose('${f.name}', { type: ${f.prismaType}${f.optional ? ', nullable: true' : ''} }),`;
+    return `${f.name}: t.expose('${f.name}', { type: ${f.prismaType}${nullOpt} }),`;
   }
   switch (f.prismaType) {
     case 'String':
       return f.isId
-        ? `${f.name}: t.exposeID('${f.name}'),`
-        : `${f.name}: t.exposeString('${f.name}'${f.optional ? ', { nullable: true }' : ''}),`;
+        ? `${f.name}: t.exposeID('${f.name}', { nullable: false }),`
+        : `${f.name}: t.exposeString('${f.name}'${nullOptObj}),`;
     case 'Int':
-      return `${f.name}: t.exposeInt('${f.name}'${f.optional ? ', { nullable: true }' : ''}),`;
+      return `${f.name}: t.exposeInt('${f.name}'${nullOptObj}),`;
     case 'Float':
-      return `${f.name}: t.exposeFloat('${f.name}'${f.optional ? ', { nullable: true }' : ''}),`;
+      return `${f.name}: t.exposeFloat('${f.name}'${nullOptObj}),`;
     case 'Boolean':
-      return `${f.name}: t.exposeBoolean('${f.name}'${f.optional ? ', { nullable: true }' : ''}),`;
+      return `${f.name}: t.exposeBoolean('${f.name}'${nullOptObj}),`;
     case 'DateTime':
-      return `${f.name}: t.expose('${f.name}', { type: 'DateTime'${f.optional ? ', nullable: true' : ''} }),`;
+      return `${f.name}: t.expose('${f.name}', { type: 'DateTime'${nullOpt} }),`;
     case 'Json':
-      return `${f.name}: t.expose('${f.name}', { type: 'JSON'${f.optional ? ', nullable: true' : ''} }),`;
+      const jsonType = usePrismaJsonTypes && f.jsonTypeRef ? f.jsonTypeRef : 'JSON';
+      return `${f.name}: t.expose('${f.name}', { type: '${jsonType}'${nullOpt} }),`;
     case 'Bytes':
     case 'BigInt':
     case 'Decimal':
-      return `${f.name}: t.expose('${f.name}', { type: '${f.prismaType}'${f.optional ? ', nullable: true' : ''} }),`;
+      return `${f.name}: t.expose('${f.name}', { type: '${f.prismaType}'${nullOpt} }),`;
     default:
-      return `${f.name}: t.exposeString('${f.name}'${f.optional ? ', { nullable: true }' : ''}),`;
+      return `${f.name}: t.exposeString('${f.name}'${nullOptObj}),`;
   }
 }
 

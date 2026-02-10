@@ -54,6 +54,15 @@ function isEnum(schema: Schema, name: string): boolean {
   return schema.list.some((b) => b.type === 'enum' && b.name === name);
 }
 
+/** Parse prisma-json-types-generator comment /// [TypeName] or /// ![inline]. Returns TypeName for namespace ref, or undefined. */
+function getJsonTypeRefFromComment(comment: string | undefined): string | undefined {
+  if (!comment || typeof comment !== 'string') return undefined;
+  const trimmed = comment.trim();
+  const namespaceMatch = trimmed.match(/\/\/\/\s*\[\s*([^\]\s]+)\s*\]/);
+  if (namespaceMatch) return namespaceMatch[1]!;
+  return undefined;
+}
+
 export function parsePrismaSchema(schemaSource: string): NormalizedSchema {
   const schema = getSchema(schemaSource);
   const enums: NormalizedEnum[] = [];
@@ -71,9 +80,17 @@ export function parsePrismaSchema(schemaSource: string): NormalizedSchema {
       const fields: ModelField[] = [];
       const relationNames: string[] = [];
       const compoundUniques: CompoundUnique[] = [];
+      let pendingComment: string | undefined;
 
       for (const prop of block.properties) {
-        if (!isField(prop)) continue;
+        if (prop?.type === 'comment' && 'text' in prop) {
+          pendingComment = (prop as { type: 'comment'; text: string }).text;
+          continue;
+        }
+        if (!isField(prop)) {
+          pendingComment = undefined;
+          continue;
+        }
 
         const prismaType = getFieldTypeName(prop);
         const isRelation = isRelationField(schema, block.name, prismaType);
@@ -94,6 +111,8 @@ export function parsePrismaSchema(schemaSource: string): NormalizedSchema {
           graphqlType = prop.array ? `[${base}!]!` : prop.optional ? base : `${base}!`;
         }
 
+        const jsonTypeRef = getJsonTypeRefFromComment(pendingComment ?? prop.comment);
+        pendingComment = undefined;
         fields.push({
           name: prop.name,
           kind,
@@ -106,6 +125,7 @@ export function parsePrismaSchema(schemaSource: string): NormalizedSchema {
           hasDefault: hasAttr(prop, 'default'),
           relationTo: isRelation ? prismaType : undefined,
           relationKeyFields: isRelation ? getRelationKeyFields(prop) : undefined,
+          jsonTypeRef: jsonTypeRef ?? undefined,
         });
       }
 

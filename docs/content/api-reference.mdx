@@ -135,10 +135,18 @@ interface NormalizedEnum {
 ```ts
 interface GeneratePothosSchemaOptions {
   prismaClientPath?: string;
+  useRelationInputs?: boolean;
+  includePrismaObjects?: boolean;
+  usePrismaJsonTypes?: boolean;
 }
 ```
 
-When set, `prismaClientPath` is the import path to the Prisma client (e.g. `../../generated/prisma/client.js`). The generated file then types input refs as `InputTypeRef<any, Prisma.UserCreateInput>`, etc.
+| Option | Description |
+|--------|-------------|
+| `prismaClientPath` | Import path to the Prisma client (e.g. `../../generated/prisma/client.js`). When set, the generated file types input refs as `InputTypeRef<any, Prisma.UserCreateInput>`, etc. |
+| `useRelationInputs` | When `true`, CreateInput/UpdateInput use nested relation inputs (connect, create, connectOrCreate) and are typed as Prisma CreateInput/UpdateInput. |
+| `includePrismaObjects` | When `true`, generates `builder.prismaObject(modelName, { fields })` for each model. Requires @pothos/plugin-prisma. |
+| `usePrismaJsonTypes` | When `true` and `includePrismaObjects` is true, Json fields with a `/// [TypeName]` comment use that type name in Pothos. You define the object type; we only reference it by name. See [Optional Prisma JSON types](/prisma-json-types). |
 
 ### `WritePothosInputsOptions`
 

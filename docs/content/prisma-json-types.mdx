@@ -1,0 +1,72 @@
+---
+title: Optional Prisma JSON types
+description: Use type names from prisma-json-types-generator in generated Prisma objects. We reference types by name only; you define the object types.
+---
+
+# Optional Prisma JSON types
+
+If you use **[prisma-json-types-generator](https://github.com/arthurfiorette/prisma-json-types-generator)** to give your `Json` (and `String`) fields strong TypeScript types via schema comments like `/// [UserProfile]`, you can optionally have this package use those **type names** when generating Prisma object fields.
+
+## What we do and don’t do
+
+- **We do:** Read the same `/// [TypeName]` comments from your Prisma schema and, when the option is on, emit `t.expose('field', { type: 'TypeName', ... })` instead of `type: 'JSON'` for that field. So the generated code **references** your custom type by name.
+- **We don’t:** Build or generate the Pothos object type for that name. We don’t know the shape of `UserProfile` (its fields, types, nullability); we only know the name. So we cannot emit `builder.objectType('UserProfile', { fields: ... })`.
+
+You must **define each referenced type** in Pothos yourself (e.g. `builder.objectType('UserProfile', { fields: (t) => ({ ... }) })`) and register it **before** calling `registerPothosTypes(builder)`.
+
+## Option: `usePrismaJsonTypes`
+
+Set **`usePrismaJsonTypes: true`** when generating and when **`includePrismaObjects`** is also `true`. Then any `Json` field that has a `/// [TypeName]` comment above it will use that type name in the generated Prisma object.
+
+### 1. Schema (same as prisma-json-types-generator)
+
+```prisma
+model User {
+  id      String @id @default(cuid())
+  /// [UserProfile]
+  profile Json?
+}
+```
+
+### 2. Generate with the option
+
+```ts
+generatePothosFromSchema(schemaSource, {
+  includePrismaObjects: true,
+  usePrismaJsonTypes: true,
+});
+```
+
+Or with `writePothosInputs`:
+
+```ts
+await writePothosInputs({
+  schemaPath: 'prisma/schema.prisma',
+  outputPath: 'src/__generated__/pothos-inputs.ts',
+  includePrismaObjects: true,
+  usePrismaJsonTypes: true,
+});
+```
+
+### 3. Define the type in Pothos before registering
+
+Because we only reference the type by name, you must register it first:
+
+```ts
+// Define the object type (you know the shape; we don’t)
+builder.objectType('UserProfile', {
+  fields: (t) => ({
+    theme: t.exposeString('theme'),
+    twitterHandle: t.exposeString('twitterHandle', { nullable: true }),
+  }),
+});
+
+const refs = registerPothosTypes(builder);
+```
+
+The generated code will then expose `profile` as `type: 'UserProfile'`, and Pothos will resolve it to your object type.
+
+## When to use it
+
+- Use **`usePrismaJsonTypes: true`** when you already use prisma-json-types-generator and want the same type names in your GraphQL Prisma objects, and you’re fine defining those object types yourself in Pothos.
+- Leave it **`false`** (default) if you don’t use prisma-json-types-generator or prefer `Json` fields to stay as the generic `JSON` scalar in GraphQL.

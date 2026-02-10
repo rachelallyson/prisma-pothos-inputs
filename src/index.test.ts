@@ -309,8 +309,8 @@ describe('generatePothosFromSchema', () => {
       'should emit builder.prismaObject for Post'
     );
     assert.ok(
-      ts.includes("id: t.exposeID('id')"),
-      'User object should expose id as ID'
+      ts.includes("id: t.exposeID('id', { nullable: false })"),
+      'User object should expose id as non-null ID'
     );
     assert.ok(
       ts.includes("role: t.expose('role', { type: Role"),
@@ -343,6 +343,122 @@ describe('generatePothosFromSchema', () => {
   it('without includePrismaObjects does not emit builder.prismaObject', () => {
     const ts = generatePothosFromSchema(schemaWithUserAndPost);
     assert.ok(!ts.includes('builder.prismaObject('));
+  });
+
+  it('with usePrismaJsonTypes and /// [TypeName] on Json field, uses that type in prismaObject', () => {
+    const schemaWithJson = `
+      model User {
+        id      String @id @default(cuid())
+        /// [UserProfile]
+        profile Json?
+      }
+    `;
+    const ts = generatePothosFromSchema(schemaWithJson, {
+      includePrismaObjects: true,
+      usePrismaJsonTypes: true,
+    });
+    assert.ok(
+      ts.includes("profile: t.expose('profile', { type: 'UserProfile'"),
+      'Json field with /// [UserProfile] should use type UserProfile when usePrismaJsonTypes is true'
+    );
+  });
+
+  it('without usePrismaJsonTypes Json fields stay as JSON type', () => {
+    const schemaWithJson = `
+      model User {
+        id      String @id @default(cuid())
+        /// [UserProfile]
+        profile Json?
+      }
+    `;
+    const ts = generatePothosFromSchema(schemaWithJson, {
+      includePrismaObjects: true,
+      usePrismaJsonTypes: false,
+    });
+    assert.ok(ts.includes("type: 'JSON'"));
+  });
+});
+
+describe('regression: previously fixed bugs', () => {
+  it('prismaObject id is non-null so client types get id: string not id?: string | null', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      includePrismaObjects: true,
+    });
+    assert.ok(
+      ts.includes("id: t.exposeID('id', { nullable: false })"),
+      'id must be exposeID with nullable: false (Pothos v4 defaults to nullable)'
+    );
+    assert.ok(
+      !ts.includes("id: t.exposeID('id'),"),
+      'must not emit id without nullable: false (would make id optional in schema)'
+    );
+  });
+
+  it('prismaObject required enum fields are non-null so client types get role: Role not role?: Role | null', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      includePrismaObjects: true,
+    });
+    assert.ok(
+      ts.includes("role: t.expose('role', { type: Role, nullable: false })"),
+      'required enum role must have nullable: false so schema has role: Role!'
+    );
+  });
+
+  it('relations use onNull: \'error\' and explicit nullable so plugin type is satisfied', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      includePrismaObjects: true,
+    });
+    assert.ok(
+      ts.includes("onNull: 'error'"),
+      't.relation must receive onNull: \'error\' (plugin expects this, not empty object)'
+    );
+    assert.ok(
+      ts.includes("t.relation('author'") && ts.includes('nullable: false'),
+      'required single relation (Post.author) must have explicit nullable: false'
+    );
+  });
+
+  it('optional DateTime uses DateTimeNullableFilter so nested where deletedAt: { equals: null } works', () => {
+    const schemaWithDeletedAt = `
+      model Widget {
+        id        String    @id @default(cuid())
+        name      String
+        deletedAt DateTime?
+      }
+    `;
+    const ts = generatePothosFromSchema(schemaWithDeletedAt);
+    assert.ok(
+      ts.includes("builder.inputType('DateTimeNullableFilter'"),
+      'must emit DateTimeNullableFilter for optional DateTime'
+    );
+    assert.ok(
+      ts.includes("deletedAt: t.field({ type: 'DateTimeNullableFilter'"),
+      'WidgetWhereInput must use DateTimeNullableFilter for deletedAt so equals: null is valid'
+    );
+  });
+
+  it('list relations have where arg and query so nested where is applied', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      includePrismaObjects: true,
+    });
+    assert.ok(
+      ts.includes("where: t.arg({ type: 'PostWhereInput', required: false })"),
+      'list relation must have where arg'
+    );
+    assert.ok(
+      ts.includes('query: (args) => ({') && ts.includes('where: args.where'),
+      'list relation must pass where through query so nested filter is applied'
+    );
+  });
+
+  it('list relations are non-null so client types get array not array | null', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      includePrismaObjects: true,
+    });
+    assert.ok(
+      ts.includes("t.relation('posts'") && ts.includes('nullable: false'),
+      'list relation (e.g. User.posts) must have nullable: false so type is Array<...> not Array<...> | null'
+    );
   });
 });
 

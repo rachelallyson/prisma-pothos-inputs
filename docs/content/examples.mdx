@@ -107,17 +107,19 @@ Because you passed `--prisma-client-path`, `refs.UserCreateInputType` is typed a
 
 ## Prisma object types and enums
 
-Wire Prisma models with `builder.prismaObject('ModelName', { fields })`. Use generated enum refs for enum fields and the `DateTime` scalar for date fields:
+You can wire Prisma models by hand with `builder.prismaObject('ModelName', { fields })`, or have the generator emit them: set **includePrismaObjects: true** when generating. Generated Prisma objects use explicit nullability (required fields `nullable: false`, list relations non-null), and list relations get `where`, `orderBy`, `take`, and `skip` args for nested filtering. To use custom JSON type names from **prisma-json-types-generator** (`/// [TypeName]` comments), set **usePrismaJsonTypes: true** as well; you still define those object types in Pothos — see [Optional Prisma JSON types](/prisma-json-types).
+
+Manual wiring example (if not using includePrismaObjects):
 
 ```ts
 builder.prismaObject('User', {
   fields: (t) => ({
-    id: t.exposeID('id'),
+    id: t.exposeID('id', { nullable: false }),
     email: t.exposeString('email'),
     name: t.exposeString('name', { nullable: true }),
-    role: t.expose('role', { type: refs.Role }),
+    role: t.expose('role', { type: refs.Role, nullable: false }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
-    posts: t.relation('posts'),
+    posts: t.relation('posts', { nullable: false }),
   }),
 });
 ```

@@ -85,6 +85,21 @@ describe('parsePrismaSchema', () => {
     assert.strictEqual(roleField!.hasDefault, true, 'role has @default so hasDefault should be true');
   });
 
+  it('parses /// [TypeName] comment as jsonTypeRef for prisma-json-types-generator', () => {
+    const source = `
+      model User {
+        id      String @id @default(cuid())
+        /// [UserProfile]
+        profile Json?
+      }
+    `;
+    const result = parsePrismaSchema(source);
+    const profileField = result.models[0]!.fields.find((f) => f.name === 'profile');
+    assert.ok(profileField);
+    assert.strictEqual(profileField!.jsonTypeRef, 'UserProfile');
+    assert.strictEqual(profileField!.prismaType, 'Json');
+  });
+
   it('parses relation fields and populates relationNames', () => {
     const source = `
       model User {
