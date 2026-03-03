@@ -166,7 +166,11 @@ export function parsePrismaSchema(schemaSource: string): NormalizedSchema {
       if (field.relationTo == null) continue;
       const relatedModel = models.find((m) => m.name === field.relationTo);
       if (!relatedModel) continue;
-      const backField = relatedModel.fields.find(
+      const candidates = relatedModel.fields.filter(
+        (f) => (f.relationTo === model.name || (f.kind === 'relation' && f.prismaType === model.name)) && f.name !== field.name
+      );
+      // For self-relations, prefer the "other" side (exclude same field); otherwise take first match
+      const backField = candidates.length > 0 ? candidates[0]! : relatedModel.fields.find(
         (f) => f.relationTo === model.name || (f.kind === 'relation' && f.prismaType === model.name)
       );
       if (backField) (field as ModelField).relationBackField = backField.name;

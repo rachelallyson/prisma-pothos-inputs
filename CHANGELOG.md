@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-03-03
+
+### Fixed
+
+- **Self-relation back field** — For self-relations (e.g. `PeopleDepartment` with `parent` / `children`), the parser now chooses the other side as `relationBackField` instead of the first matching field, so `parent` gets back field `children` and vice versa. This fixes incorrect Prisma-typed refs (e.g. `PeopleDepartmentCreateNestedOneWithoutParentInput`) when only `CreateNestedMany` exists; the generator no longer asserts those types and the patch is no longer needed.
+
 ## [1.3.3] - 2026-03-03
 
 ### Fixed

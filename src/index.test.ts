@@ -142,6 +142,17 @@ describe('generatePothosFromSchema', () => {
     assert.ok(ts.includes('Prisma.PostUncheckedUpdateInput'));
   });
 
+  it('with prismaClientPath FindManyArgs ref is typed as Prisma', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      prismaClientPath: '../../generated/prisma/client.js',
+    });
+    assert.ok(ts.includes('UserFindManyArgs') && ts.includes('PostFindManyArgs'));
+    assert.ok(
+      ts.includes('Prisma.UserFindManyArgs') && ts.includes('Prisma.PostFindManyArgs'),
+      'FindManyArgs refs should be Prisma-typed for strict typing'
+    );
+  });
+
   it('without prismaClientPath does not import Prisma', () => {
     const ts = generatePothosFromSchema(schemaWithUserAndPost);
     assert.ok(!ts.includes("from '"));
@@ -374,6 +385,30 @@ describe('generatePothosFromSchema', () => {
     assert.ok(
       !ts.includes('Prisma.TeamCreateNestedOneWithoutChurchInput'),
       'must not type CreateNestedOne as Prisma.X when current relation is list (avoids TS2724)'
+    );
+  });
+
+  it('self-relation (PeopleDepartment parent/children): no Prisma type for CreateNestedOne/UpdateOne on list side', () => {
+    const schemaSelfRelation = `
+      model PeopleDepartment {
+        id       String             @id @default(cuid())
+        parentId String?
+        parent   PeopleDepartment?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+        children PeopleDepartment[] @relation("DepartmentHierarchy")
+      }
+    `;
+    const ts = generatePothosFromSchema(schemaSelfRelation, {
+      useRelationInputs: true,
+      prismaClientPath: '../../generated/prisma/client.js',
+    });
+    // List side (children): Prisma only has CreateNestedMany/UpdateMany, not CreateNestedOne/UpdateOne
+    assert.ok(
+      !ts.includes('Prisma.PeopleDepartmentCreateNestedOneWithoutParentInput'),
+      'must not type CreateNestedOne as Prisma when current relation is list (self-relation)'
+    );
+    assert.ok(
+      !ts.includes('Prisma.PeopleDepartmentUpdateOneWithoutParentNestedInput'),
+      'must not type UpdateOne as Prisma when relation is list (self-relation)'
     );
   });
 

@@ -242,6 +242,43 @@ describe('parsePrismaSchema', () => {
     assert.ok(result.models.some((m) => m.name === 'T'));
   });
 
+  it('parses self-relation with parent/children and sets isList on array side', () => {
+    const source = `
+      model PeopleDepartment {
+        id       String              @id @default(cuid())
+        parentId String?
+        parent   PeopleDepartment?   @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+        children PeopleDepartment[]  @relation("DepartmentHierarchy")
+      }
+    `;
+    const result = parsePrismaSchema(source);
+    const model = result.models.find((m) => m.name === 'PeopleDepartment')!;
+    assert.ok(model);
+    const parent = model.fields.find((f) => f.name === 'parent')!;
+    const children = model.fields.find((f) => f.name === 'children')!;
+    assert.ok(parent);
+    assert.ok(children);
+    assert.strictEqual(parent.isList, false, 'parent should be single relation');
+    assert.strictEqual(children.isList, true, 'children should be list relation (array)');
+  });
+
+  it('self-relation back field is the other side (parent->children, children->parent)', () => {
+    const source = `
+      model PeopleDepartment {
+        id       String              @id @default(cuid())
+        parentId String?
+        parent   PeopleDepartment?   @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+        children PeopleDepartment[]  @relation("DepartmentHierarchy")
+      }
+    `;
+    const result = parsePrismaSchema(source);
+    const model = result.models.find((m) => m.name === 'PeopleDepartment')!;
+    const parent = model.fields.find((f) => f.name === 'parent')!;
+    const children = model.fields.find((f) => f.name === 'children')!;
+    assert.strictEqual(parent.relationBackField, 'children', 'parent back field should be children');
+    assert.strictEqual(children.relationBackField, 'parent', 'children back field should be parent');
+  });
+
   it('throws on invalid Prisma schema syntax', () => {
     assert.throws(() => parsePrismaSchema('model M { id String @id'));
   });
