@@ -363,7 +363,11 @@ export function generatePothosSchema(
         const nestedOneTypeName = `${otherName}CreateNestedOneWithout${backPascal}Input`;
         const nestedOneVarName = `${nestedOneTypeName}Type`;
         inputRefs.push(nestedOneVarName);
-        if (!f.isList) inputRefToPrismaType.set(nestedOneVarName, nestedOneTypeName);
+        // Prisma only has CreateNestedOne when the back relation is single (one-to-one); for one-to-many the "one" side has CreateNestedMany
+        const backFieldOnOther = otherModel.fields.find((ff) => ff.name === f.relationBackField);
+        if (backFieldOnOther?.kind === 'relation' && !backFieldOnOther.isList) {
+          inputRefToPrismaType.set(nestedOneVarName, nestedOneTypeName);
+        }
         lines.push(`${INDENT}const ${nestedOneVarName} = builder.inputType('${nestedOneTypeName}', {`);
         lines.push(`${INDENT}  fields: (t) => ({`);
         lines.push(`${INDENT}    connect: t.field({ type: '${otherName}WhereUniqueInput', required: false }),`);
@@ -489,7 +493,7 @@ export function generatePothosSchema(
           const updateOneTypeName = `${otherName}UpdateOneWithout${backPascal}NestedInput`;
           const updateOneVarName = `${updateOneTypeName}Type`;
           inputRefs.push(updateOneVarName);
-          inputRefToPrismaType.set(updateOneVarName, updateOneTypeName);
+          if (f.optional) inputRefToPrismaType.set(updateOneVarName, updateOneTypeName);
           lines.push(`${INDENT}const ${updateOneVarName} = builder.inputType('${updateOneTypeName}', {`);
           lines.push(`${INDENT}  fields: (t) => ({`);
           lines.push(`${INDENT}    connect: t.field({ type: '${otherName}WhereUniqueInput', required: false }),`);
@@ -503,7 +507,7 @@ export function generatePothosSchema(
           const updateOneRequiredTypeName = `${otherName}UpdateOneRequiredWithout${backPascal}NestedInput`;
           const updateOneRequiredVarName = `${updateOneRequiredTypeName}Type`;
           inputRefs.push(updateOneRequiredVarName);
-          inputRefToPrismaType.set(updateOneRequiredVarName, updateOneRequiredTypeName);
+          if (!f.optional) inputRefToPrismaType.set(updateOneRequiredVarName, updateOneRequiredTypeName);
           lines.push(`${INDENT}const ${updateOneRequiredVarName} = builder.inputType('${updateOneRequiredTypeName}', {`);
           lines.push(`${INDENT}  fields: (t) => ({`);
           lines.push(`${INDENT}    connect: t.field({ type: '${otherName}WhereUniqueInput', required: false }),`);
