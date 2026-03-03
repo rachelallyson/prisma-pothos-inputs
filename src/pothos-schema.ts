@@ -14,6 +14,8 @@ export interface GeneratePothosSchemaOptions {
   includePrismaObjects?: boolean;
   /** When true and includePrismaObjects is true, Json fields with a /// [TypeName] comment (prisma-json-types-generator) use that type name in Pothos so you can map to your namespace types. Register the type (e.g. builder.objectType('UserProfile', ...)) before calling registerPothosTypes. */
   usePrismaJsonTypes?: boolean;
+  /** When includePrismaObjects is true, omit these field names from the given model's prismaObject so you can override them (e.g. with union types). Example: { MetricEntry: ['linkedSource', 'linkedSourceType'], Metric: ['linkedType', 'linkedConfig'] }. */
+  omitPrismaObjectFields?: Record<string, string[]>;
 }
 
 /** Generates TypeScript that registers scalars, enums, and input types with a Pothos builder. */
@@ -21,7 +23,13 @@ export function generatePothosSchema(
   normalized: NormalizedSchema,
   options: GeneratePothosSchemaOptions = {}
 ): string {
-  const { prismaClientPath, useRelationInputs = false, includePrismaObjects = false, usePrismaJsonTypes = false } = options;
+  const {
+    prismaClientPath,
+    useRelationInputs = false,
+    includePrismaObjects = false,
+    usePrismaJsonTypes = false,
+    omitPrismaObjectFields = {},
+  } = options;
   const enumRefs: string[] = [];
   const orderByRefs: string[] = [];
   const inputRefs: string[] = [];
@@ -297,7 +305,10 @@ export function generatePothosSchema(
             const withoutTypeName = `${otherName}CreateWithout${backPascal}Input`;
             const connectOrCreateTypeName = `${otherName}CreateOrConnectWithout${backPascal}Input`;
             const nestedManyTypeName = `${otherName}CreateNestedManyWithout${backPascal}Input`;
-            lines.push(`${INDENT}builder.inputType('${nestedManyTypeName}', {`);
+            const nestedManyVarName = `${nestedManyTypeName}Type`;
+            inputRefs.push(nestedManyVarName);
+            inputRefToPrismaType.set(nestedManyVarName, nestedManyTypeName);
+            lines.push(`${INDENT}const ${nestedManyVarName} = builder.inputType('${nestedManyTypeName}', {`);
             lines.push(`${INDENT}  fields: (t) => ({`);
             lines.push(`${INDENT}    create: t.field({ type: ['${withoutTypeName}'], required: false }),`);
             lines.push(`${INDENT}    connect: t.field({ type: ['${otherName}WhereUniqueInput'], required: false }),`);
@@ -321,7 +332,10 @@ export function generatePothosSchema(
         const otherScalarsFiltered = otherScalars.filter((s) => !allKeyFieldsToOmit.has(s.name));
         const withoutFields = createInputFields(otherScalarsFiltered, normalized.enums);
         const withoutTypeName = `${otherName}CreateWithout${backPascal}Input`;
-        lines.push(`${INDENT}builder.inputType('${withoutTypeName}', {`);
+        const withoutVarName = `${withoutTypeName}Type`;
+        inputRefs.push(withoutVarName);
+        inputRefToPrismaType.set(withoutVarName, withoutTypeName);
+        lines.push(`${INDENT}const ${withoutVarName} = builder.inputType('${withoutTypeName}', {`);
         lines.push(`${INDENT}  fields: (t) => ({`);
         for (const line of withoutFields) lines.push(`${INDENT}    ${line}`);
         for (const orf of otherRelationFields) {
@@ -336,7 +350,10 @@ export function generatePothosSchema(
         lines.push(`${INDENT}});`);
         lines.push(``);
         const connectOrCreateTypeName = `${otherName}CreateOrConnectWithout${backPascal}Input`;
-        lines.push(`${INDENT}builder.inputType('${connectOrCreateTypeName}', {`);
+        const connectOrCreateVarName = `${connectOrCreateTypeName}Type`;
+        inputRefs.push(connectOrCreateVarName);
+        inputRefToPrismaType.set(connectOrCreateVarName, connectOrCreateTypeName);
+        lines.push(`${INDENT}const ${connectOrCreateVarName} = builder.inputType('${connectOrCreateTypeName}', {`);
         lines.push(`${INDENT}  fields: (t) => ({`);
         lines.push(`${INDENT}    where: t.field({ type: '${otherName}WhereUniqueInput', required: true }),`);
         lines.push(`${INDENT}    create: t.field({ type: '${withoutTypeName}', required: true }),`);
@@ -344,7 +361,10 @@ export function generatePothosSchema(
         lines.push(`${INDENT}});`);
         lines.push(``);
         const nestedOneTypeName = `${otherName}CreateNestedOneWithout${backPascal}Input`;
-        lines.push(`${INDENT}builder.inputType('${nestedOneTypeName}', {`);
+        const nestedOneVarName = `${nestedOneTypeName}Type`;
+        inputRefs.push(nestedOneVarName);
+        inputRefToPrismaType.set(nestedOneVarName, nestedOneTypeName);
+        lines.push(`${INDENT}const ${nestedOneVarName} = builder.inputType('${nestedOneTypeName}', {`);
         lines.push(`${INDENT}  fields: (t) => ({`);
         lines.push(`${INDENT}    connect: t.field({ type: '${otherName}WhereUniqueInput', required: false }),`);
         lines.push(`${INDENT}    create: t.field({ type: '${withoutTypeName}', required: false }),`);
@@ -355,7 +375,10 @@ export function generatePothosSchema(
         if (f.isList) {
           createdNestedManyKeys.add(key);
           const nestedManyTypeName = `${otherName}CreateNestedManyWithout${backPascal}Input`;
-          lines.push(`${INDENT}builder.inputType('${nestedManyTypeName}', {`);
+          const nestedManyVarName = `${nestedManyTypeName}Type`;
+          inputRefs.push(nestedManyVarName);
+          inputRefToPrismaType.set(nestedManyVarName, nestedManyTypeName);
+          lines.push(`${INDENT}const ${nestedManyVarName} = builder.inputType('${nestedManyTypeName}', {`);
           lines.push(`${INDENT}  fields: (t) => ({`);
           lines.push(`${INDENT}    create: t.field({ type: ['${withoutTypeName}'], required: false }),`);
           lines.push(`${INDENT}    connect: t.field({ type: ['${otherName}WhereUniqueInput'], required: false }),`);
@@ -387,21 +410,30 @@ export function generatePothosSchema(
             const updateWithWhereUniqueTypeName = `${otherName}UpdateWithWhereUniqueWithout${backPascal}Input`;
             const updateManyWithWhereTypeName = `${otherName}UpdateManyWithWhereWithout${backPascal}Input`;
             const nestedManyTypeName = `${otherName}UpdateManyWithout${backPascal}NestedInput`;
-            lines.push(`${INDENT}builder.inputType('${updateWithWhereUniqueTypeName}', {`);
+            const updateWithWhereUniqueVarName = `${updateWithWhereUniqueTypeName}Type`;
+            inputRefs.push(updateWithWhereUniqueVarName);
+            inputRefToPrismaType.set(updateWithWhereUniqueVarName, updateWithWhereUniqueTypeName);
+            lines.push(`${INDENT}const ${updateWithWhereUniqueVarName} = builder.inputType('${updateWithWhereUniqueTypeName}', {`);
             lines.push(`${INDENT}  fields: (t) => ({`);
             lines.push(`${INDENT}    where: t.field({ type: '${otherName}WhereUniqueInput', required: true }),`);
             lines.push(`${INDENT}    data: t.field({ type: '${updateWithoutTypeName}', required: true }),`);
             lines.push(`${INDENT}  }),`);
             lines.push(`${INDENT}});`);
             lines.push(``);
-            lines.push(`${INDENT}builder.inputType('${updateManyWithWhereTypeName}', {`);
+            const updateManyWithWhereVarName = `${updateManyWithWhereTypeName}Type`;
+            inputRefs.push(updateManyWithWhereVarName);
+            inputRefToPrismaType.set(updateManyWithWhereVarName, updateManyWithWhereTypeName);
+            lines.push(`${INDENT}const ${updateManyWithWhereVarName} = builder.inputType('${updateManyWithWhereTypeName}', {`);
             lines.push(`${INDENT}  fields: (t) => ({`);
             lines.push(`${INDENT}    where: t.field({ type: '${otherName}WhereInput', required: true }),`);
             lines.push(`${INDENT}    data: t.field({ type: '${updateWithoutTypeName}', required: true }),`);
             lines.push(`${INDENT}  }),`);
             lines.push(`${INDENT}});`);
             lines.push(``);
-            lines.push(`${INDENT}builder.inputType('${nestedManyTypeName}', {`);
+            const nestedManyVarName = `${nestedManyTypeName}Type`;
+            inputRefs.push(nestedManyVarName);
+            inputRefToPrismaType.set(nestedManyVarName, nestedManyTypeName);
+            lines.push(`${INDENT}const ${nestedManyVarName} = builder.inputType('${nestedManyTypeName}', {`);
             lines.push(`${INDENT}  fields: (t) => ({`);
             lines.push(`${INDENT}    create: t.field({ type: ['${withoutTypeName}'], required: false }),`);
             lines.push(`${INDENT}    connect: t.field({ type: ['${otherName}WhereUniqueInput'], required: false }),`);
@@ -430,7 +462,10 @@ export function generatePothosSchema(
         const otherScalarsFiltered = otherScalars.filter((s) => !allKeyFieldsToOmit.has(s.name));
         const updateWithoutFields = updateInputFields(otherScalarsFiltered, normalized.enums);
         const updateWithoutTypeName = `${otherName}UpdateWithout${backPascal}Input`;
-        lines.push(`${INDENT}builder.inputType('${updateWithoutTypeName}', {`);
+        const updateWithoutVarName = `${updateWithoutTypeName}Type`;
+        inputRefs.push(updateWithoutVarName);
+        inputRefToPrismaType.set(updateWithoutVarName, updateWithoutTypeName);
+        lines.push(`${INDENT}const ${updateWithoutVarName} = builder.inputType('${updateWithoutTypeName}', {`);
         lines.push(`${INDENT}  fields: (t) => ({`);
         for (const line of updateWithoutFields) lines.push(`${INDENT}    ${line}`);
         for (const orf of otherRelationFields) {
@@ -450,7 +485,10 @@ export function generatePothosSchema(
         const connectOrCreateTypeName = `${otherName}CreateOrConnectWithout${backPascal}Input`;
         const nestedOneTypeName = `${otherName}CreateNestedOneWithout${backPascal}Input`;
         const updateOneTypeName = `${otherName}UpdateOneWithout${backPascal}NestedInput`;
-        lines.push(`${INDENT}builder.inputType('${updateOneTypeName}', {`);
+        const updateOneVarName = `${updateOneTypeName}Type`;
+        inputRefs.push(updateOneVarName);
+        inputRefToPrismaType.set(updateOneVarName, updateOneTypeName);
+        lines.push(`${INDENT}const ${updateOneVarName} = builder.inputType('${updateOneTypeName}', {`);
         lines.push(`${INDENT}  fields: (t) => ({`);
         lines.push(`${INDENT}    connect: t.field({ type: '${otherName}WhereUniqueInput', required: false }),`);
         lines.push(`${INDENT}    disconnect: t.field({ type: 'Boolean', required: false }),`);
@@ -461,7 +499,10 @@ export function generatePothosSchema(
         lines.push(`${INDENT}});`);
         lines.push(``);
         const updateOneRequiredTypeName = `${otherName}UpdateOneRequiredWithout${backPascal}NestedInput`;
-        lines.push(`${INDENT}builder.inputType('${updateOneRequiredTypeName}', {`);
+        const updateOneRequiredVarName = `${updateOneRequiredTypeName}Type`;
+        inputRefs.push(updateOneRequiredVarName);
+        inputRefToPrismaType.set(updateOneRequiredVarName, updateOneRequiredTypeName);
+        lines.push(`${INDENT}const ${updateOneRequiredVarName} = builder.inputType('${updateOneRequiredTypeName}', {`);
         lines.push(`${INDENT}  fields: (t) => ({`);
         lines.push(`${INDENT}    connect: t.field({ type: '${otherName}WhereUniqueInput', required: false }),`);
         lines.push(`${INDENT}    disconnect: t.field({ type: 'Boolean', required: false }),`);
@@ -474,7 +515,10 @@ export function generatePothosSchema(
         if (f.isList) {
           updatedNestedManyKeys.add(key);
           const updateWithWhereUniqueTypeName = `${otherName}UpdateWithWhereUniqueWithout${backPascal}Input`;
-          lines.push(`${INDENT}builder.inputType('${updateWithWhereUniqueTypeName}', {`);
+          const updateWithWhereUniqueVarName = `${updateWithWhereUniqueTypeName}Type`;
+          inputRefs.push(updateWithWhereUniqueVarName);
+          inputRefToPrismaType.set(updateWithWhereUniqueVarName, updateWithWhereUniqueTypeName);
+          lines.push(`${INDENT}const ${updateWithWhereUniqueVarName} = builder.inputType('${updateWithWhereUniqueTypeName}', {`);
           lines.push(`${INDENT}  fields: (t) => ({`);
           lines.push(`${INDENT}    where: t.field({ type: '${otherName}WhereUniqueInput', required: true }),`);
           lines.push(`${INDENT}    data: t.field({ type: '${updateWithoutTypeName}', required: true }),`);
@@ -482,7 +526,10 @@ export function generatePothosSchema(
           lines.push(`${INDENT}});`);
           lines.push(``);
           const updateManyWithWhereTypeName = `${otherName}UpdateManyWithWhereWithout${backPascal}Input`;
-          lines.push(`${INDENT}builder.inputType('${updateManyWithWhereTypeName}', {`);
+          const updateManyWithWhereVarName = `${updateManyWithWhereTypeName}Type`;
+          inputRefs.push(updateManyWithWhereVarName);
+          inputRefToPrismaType.set(updateManyWithWhereVarName, updateManyWithWhereTypeName);
+          lines.push(`${INDENT}const ${updateManyWithWhereVarName} = builder.inputType('${updateManyWithWhereTypeName}', {`);
           lines.push(`${INDENT}  fields: (t) => ({`);
           lines.push(`${INDENT}    where: t.field({ type: '${otherName}WhereInput', required: true }),`);
           lines.push(`${INDENT}    data: t.field({ type: '${updateWithoutTypeName}', required: true }),`);
@@ -490,7 +537,10 @@ export function generatePothosSchema(
           lines.push(`${INDENT}});`);
           lines.push(``);
           const nestedManyTypeName = `${otherName}UpdateManyWithout${backPascal}NestedInput`;
-          lines.push(`${INDENT}builder.inputType('${nestedManyTypeName}', {`);
+          const nestedManyVarName = `${nestedManyTypeName}Type`;
+          inputRefs.push(nestedManyVarName);
+          inputRefToPrismaType.set(nestedManyVarName, nestedManyTypeName);
+          lines.push(`${INDENT}const ${nestedManyVarName} = builder.inputType('${nestedManyTypeName}', {`);
           lines.push(`${INDENT}  fields: (t) => ({`);
           lines.push(`${INDENT}    create: t.field({ type: ['${withoutTypeName}'], required: false }),`);
           lines.push(`${INDENT}    connect: t.field({ type: ['${otherName}WhereUniqueInput'], required: false }),`);
@@ -601,9 +651,11 @@ export function generatePothosSchema(
         .map((m) => m.name)
     );
     for (const model of normalized.models) {
+      const omitSet = new Set(omitPrismaObjectFields[model.name] ?? []);
       lines.push(`${INDENT}builder.prismaObject('${model.name}', {`);
       lines.push(`${INDENT}  fields: (t) => ({`);
       for (const f of model.fields) {
+        if (omitSet.has(f.name)) continue;
         const fieldLines = prismaObjectFieldLines(f, modelsWithOrderBySet, usePrismaJsonTypes);
         for (const line of fieldLines) lines.push(`${INDENT}    ${line}`);
       }
@@ -682,7 +734,8 @@ function prismaObjectFieldLines(
 
 /** Single-line field for scalars/enums (and single relations handled above). Object output: nullable only when the field is optional in the schema (can be null in DB), not when it merely has a default. Pothos v4+ defaults output fields to nullable, so we must set nullable: false for required fields. */
 function prismaObjectFieldLineScalarOrEnum(f: ModelField, usePrismaJsonTypes: boolean): string {
-  const nullable = f.optional;
+  // Output nullable only when the field can be null in the DB: optional and no default
+  const nullable = f.optional && !f.hasDefault;
   const nullOpt = nullable ? ', nullable: true' : ', nullable: false';
   const nullOptObj = nullable ? ', { nullable: true }' : ', { nullable: false }';
   if (f.kind === 'enum') {

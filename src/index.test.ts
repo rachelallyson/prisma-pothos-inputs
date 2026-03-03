@@ -296,6 +296,30 @@ describe('generatePothosFromSchema', () => {
     );
   });
 
+  it('with useRelationInputs: true exports all nested input types in return object', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      useRelationInputs: true,
+    });
+    // Nested types are named const and included in the return so consumers can reference them
+    assert.ok(
+      ts.includes('PostCreateNestedOneWithoutAuthorInputType'),
+      'should emit const PostCreateNestedOneWithoutAuthorInputType and include in return'
+    );
+    assert.ok(
+      ts.includes('UserCreateWithoutPostsInputType'),
+      'should emit const UserCreateWithoutPostsInputType and include in return'
+    );
+    assert.ok(
+      ts.includes('UserUpdateOneRequiredWithoutPostsNestedInputType'),
+      'should emit const UserUpdateOneRequiredWithoutPostsNestedInputType and include in return'
+    );
+    // Return object must list the ref
+    assert.ok(
+      /return\s*\{\s*[^}]*PostCreateNestedOneWithoutAuthorInputType\s*[^}]*\}\s*as\s*unknown/.test(ts.replace(/\s+/g, ' ')),
+      'return object should include PostCreateNestedOneWithoutAuthorInputType'
+    );
+  });
+
   it('with includePrismaObjects: true emits builder.prismaObject for each model', () => {
     const ts = generatePothosFromSchema(schemaWithUserAndPost, {
       includePrismaObjects: true,
@@ -343,6 +367,28 @@ describe('generatePothosFromSchema', () => {
   it('without includePrismaObjects does not emit builder.prismaObject', () => {
     const ts = generatePothosFromSchema(schemaWithUserAndPost);
     assert.ok(!ts.includes('builder.prismaObject('));
+  });
+
+  it('with omitPrismaObjectFields omits those fields from the given model prismaObject', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      includePrismaObjects: true,
+      omitPrismaObjectFields: {
+        User: ['email'],
+        Post: ['title'],
+      },
+    });
+    // User prismaObject: from builder.prismaObject('User') up to builder.prismaObject('Post')
+    const userBlockStart = ts.indexOf("builder.prismaObject('User'");
+    const userBlockEnd = ts.indexOf("builder.prismaObject('Post'", userBlockStart);
+    const userBlock = ts.slice(userBlockStart, userBlockEnd);
+    assert.ok(!userBlock.includes("email: t."), 'User prismaObject should omit email when in omitPrismaObjectFields');
+    assert.ok(userBlock.includes("id: t."), 'User prismaObject should still include id');
+    // Post prismaObject: from builder.prismaObject('Post') to the return statement
+    const postBlockStart = ts.indexOf("builder.prismaObject('Post'");
+    const postBlockEnd = ts.indexOf('return {', postBlockStart);
+    const postBlock = ts.slice(postBlockStart, postBlockEnd);
+    assert.ok(!postBlock.includes("title: t."), 'Post prismaObject should omit title when in omitPrismaObjectFields');
+    assert.ok(postBlock.includes("id: t."), 'Post prismaObject should still include id');
   });
 
   it('with usePrismaJsonTypes and /// [TypeName] on Json field, uses that type in prismaObject', () => {
@@ -401,6 +447,22 @@ describe('regression: previously fixed bugs', () => {
     assert.ok(
       ts.includes("role: t.expose('role', { type: Role, nullable: false })"),
       'required enum role must have nullable: false so schema has role: Role!'
+    );
+  });
+
+  it('prismaObject optional scalar with @default is non-null (field always has value in DB)', () => {
+    const schemaWithDefault = `
+      model MetricEntry {
+        id      String  @id @default(cuid())
+        content Float?  @default(0)
+      }
+    `;
+    const ts = generatePothosFromSchema(schemaWithDefault, {
+      includePrismaObjects: true,
+    });
+    assert.ok(
+      ts.includes("content: t.exposeFloat('content', { nullable: false })"),
+      'optional Float with @default(0) should be non-null in prismaObject (always has value)'
     );
   });
 

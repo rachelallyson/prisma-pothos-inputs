@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-03
+
+### Added
+
+- **omitPrismaObjectFields** — Option for `generatePothosSchema` / `writePothosInputs`. When `includePrismaObjects` is true, pass `omitPrismaObjectFields: { ModelName: ['field1', 'field2'] }` to omit those field names from the generated `builder.prismaObject(ModelName, ...)` so you can override them elsewhere (e.g. with union types) without Pothos reporting duplicate fields.
+- **Export all nested input types** — When `useRelationInputs` is true, every nested relation input type (CreateWithoutX, CreateNestedOneWithoutX, CreateNestedManyWithoutX, CreateOrConnectWithoutX, UpdateWithoutX, UpdateOneWithoutX, UpdateOneRequiredWithoutX, UpdateManyWithoutXNestedInput, UpdateWithWhereUniqueWithoutX, UpdateManyWithWhereWithoutX) is now emitted as a named const and included in the register function’s return object, so consumers can reference any of them (e.g. `pothosInputRefs.MetricCreateNestedOneWithoutEntriesInputType`) without config or patches.
+
+### Changed
+
+- **Prisma object nullability for fields with defaults** — When building prismaObject scalar/enum fields, output nullability now reflects “can this field be null in the DB?”: optional fields with `@default(...)` are emitted as non-null (`nullable: false`) because they always have a value at read time. Optional fields without a default remain nullable.
+
 ## [1.2.0] - 2026-02-09
 
 ### Added
