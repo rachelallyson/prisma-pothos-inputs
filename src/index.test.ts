@@ -349,6 +349,34 @@ describe('generatePothosFromSchema', () => {
     );
   });
 
+  it('CreateNestedOne ref is not Prisma-typed when current relation is list (one-to-many)', () => {
+    const schemaOneToMany = `
+      model Church {
+        id    String @id @default(cuid())
+        teams Team[]
+      }
+      model Team {
+        id        String  @id @default(cuid())
+        churchId  String
+        church    Church  @relation(fields: [churchId], references: [id])
+      }
+    `;
+    const ts = generatePothosFromSchema(schemaOneToMany, {
+      useRelationInputs: true,
+      prismaClientPath: '../../generated/prisma/client.js',
+    });
+    // We still emit the ref (Church has list "teams", so we emit TeamCreateNestedOneWithoutChurchInputType)
+    assert.ok(
+      ts.includes('TeamCreateNestedOneWithoutChurchInputType'),
+      'should still emit CreateNestedOne ref for consumers'
+    );
+    // But Prisma only has CreateNestedMany for that side; generator must not assert Prisma.TeamCreateNestedOneWithoutChurchInput
+    assert.ok(
+      !ts.includes('Prisma.TeamCreateNestedOneWithoutChurchInput'),
+      'must not type CreateNestedOne as Prisma.X when current relation is list (avoids TS2724)'
+    );
+  });
+
   it('with includePrismaObjects: true emits builder.prismaObject for each model', () => {
     const ts = generatePothosFromSchema(schemaWithUserAndPost, {
       includePrismaObjects: true,

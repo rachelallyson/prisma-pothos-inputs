@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-03-03
+
+### Fixed
+
+- **CreateNestedOne when current relation is list** — CreateNestedOne refs are only added to the Prisma-typed return when the relation is single on the current model (`!f.isList`). When the current model has a list relation (e.g. `Church.teams`), Prisma only generates `CreateNestedManyWithoutX`; the generator no longer asserts `Prisma.XCreateNestedOneWithoutYInput` for those refs and uses the generic input ref type instead (fixes remaining TS2724 for Team, Church, Dashboard, etc.).
+
 ## [1.3.2] - 2026-03-03
 
 ### Fixed
