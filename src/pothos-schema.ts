@@ -387,13 +387,13 @@ export function generatePothosSchema(
         const nestedOneTypeName = `${otherName}CreateNestedOneWithout${backPascal}Input`;
         const nestedOneVarName = `${nestedOneTypeName}Type`;
         inputRefs.push(nestedOneVarName);
-        // Prisma only has CreateNestedOne when the back relation is a list (one-to-many many side) or both single (one-to-one).
-        // When current relation is list and back is single (one-to-many one side), only CreateNestedMany exists — do not assert Prisma.X.
+        // Prisma only has CreateNestedOne when the *current* relation is single and (back is list, i.e. one-to-many many side, or both single, i.e. one-to-one).
+        // When current relation is list (one-to-many one side or many-to-many), Prisma only has CreateNestedMany — do not assert Prisma.X.
         const backFieldOnOther = otherModel.fields.find((ff) => ff.name === f.relationBackField);
         const currentIsList = f.isList || (f.graphqlType?.startsWith('[') ?? false);
         const backIsList = backFieldOnOther?.kind === 'relation' && (backFieldOnOther.isList || (backFieldOnOther.graphqlType?.startsWith('[') ?? false));
         const bothSingle = backFieldOnOther?.kind === 'relation' && !backIsList && !currentIsList;
-        if (backFieldOnOther?.kind === 'relation' && (backIsList || bothSingle)) {
+        if (backFieldOnOther?.kind === 'relation' && !currentIsList && (backIsList || bothSingle)) {
           inputRefToPrismaType.set(nestedOneVarName, nestedOneTypeName);
         }
         lines.push(`${INDENT}const ${nestedOneVarName} = builder.inputType('${nestedOneTypeName}', {`);

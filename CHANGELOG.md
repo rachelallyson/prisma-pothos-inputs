@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-03-03
+
+### Fixed
+
+- **CreateNestedOne Prisma typing when current relation is list** — The generator only adds `CreateNestedOneWithoutX` to the Prisma-typed return when the **current** relation is single (`!f.isList`). When the current model has a list relation (one-to-many one side or many-to-many), Prisma only generates `CreateNestedManyWithoutX`; the generator no longer asserts `Prisma.XCreateNestedOneWithoutYInput` for those refs, so you can drop post-generate patches that swap those refs to `*Many*` (fixes TS2724 for Report, PeopleTag, PeopleGroup, PersonInterval, PeopleInterval, PeopleDepartment, QuestionTag, LibraryQuestion and similar).
+
 ## [1.4.0] - 2026-03-03
 
 ### Added
