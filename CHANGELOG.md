@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-03
+
+### Added
+
+- **PrismaTypes from extended client** — When you use Prisma client extensions (`$extends`), the plugin’s `query` type can disagree with the extended client and cause “Excessive stack depth” or type errors on `findMany({ ...query, ...args.input })`. You can now generate PrismaTypes from your extended client so the plugin types `query` with the same types and the spread type-checks with no assertion.
+  - **CLI:** `--output-prisma-types <path>` and `--extended-prisma-type-path <path>` (requires `--prisma-client-path`). The module at the extended path must export `export type ExtendedPrisma = typeof yourExtendedClient;`
+  - **API:** `generatePrismaTypesFromExtendedClient(normalized, { prismaClientPath, extendedPrismaTypePath })` and type `GeneratePrismaTypesFromExtendedOptions`. Use the generated file as your SchemaBuilder’s `PrismaTypes` and pass the same extended client in context.
+- **Example** — `examples/pothos`: `db-extended.ts`, `schema-extended.ts`, `npm run generate:prisma-types-extended`, and `npm run verify:extended` demonstrate the extended-client flow and confirm it type-checks.
+
 ## [1.3.4] - 2026-03-03
 
 ### Fixed

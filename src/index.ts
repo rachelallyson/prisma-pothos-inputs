@@ -9,15 +9,21 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { parsePrismaSchema } from './parse.js';
 import { generatePothosSchema } from './pothos-schema.js';
-import type { GeneratePothosSchemaOptions } from './pothos-schema.js';
+import type {
+  GeneratePothosSchemaOptions,
+  GeneratePrismaTypesFromExtendedOptions,
+} from './pothos-schema.js';
 import type { NormalizedSchema, NormalizedModel, NormalizedEnum } from './types.js';
 
 export type { NormalizedSchema, NormalizedModel, NormalizedEnum };
 export type { PothosEnumBuilder } from './pothos-enums.js';
-export type { GeneratePothosSchemaOptions } from './pothos-schema.js';
+export type {
+  GeneratePothosSchemaOptions,
+  GeneratePrismaTypesFromExtendedOptions,
+} from './pothos-schema.js';
 export { parsePrismaSchema } from './parse.js';
 export { generatePothosEnums } from './pothos-enums.js';
-export { generatePothosSchema } from './pothos-schema.js';
+export { generatePothosSchema, generatePrismaTypesFromExtendedClient } from './pothos-schema.js';
 export { PRISMA_SCALAR_TO_GRAPHQL, CUSTOM_SCALARS } from './types.js';
 
 /**

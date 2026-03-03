@@ -3,12 +3,20 @@
  * Registers scalars, enums, and input types with your Pothos SchemaBuilder.
  * Input refs are typed as Prisma create/update inputs so you can pass args directly to Prisma.
 
+
  */
 
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { InputTypeRef, ObjectRef } from '@pothos/core';
 
 type BuilderTypes<B> = B extends PothosSchemaTypes.SchemaBuilder<infer T> ? T : never;
+
+
+/** Cast prismaField `query` to this only if you use Prisma client extensions (`$extends`) and see "Excessive stack depth"; then `prisma.User.findMany({ ...(query as UserFindManyQueryShape), ...args.input })`. */
+export type UserFindManyQueryShape = { select?: object; include?: object };
+
+/** Cast prismaField `query` to this only if you use Prisma client extensions (`$extends`) and see "Excessive stack depth"; then `prisma.Post.findMany({ ...(query as PostFindManyQueryShape), ...args.input })`. */
+export type PostFindManyQueryShape = { select?: object; include?: object };
 
 export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<any>>(builder: B): {
   Role: ReturnType<B['enumType']>;
@@ -22,6 +30,20 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
   PostFindManyArgs: InputTypeRef<BuilderTypes<B>, Prisma.PostFindManyArgs>;
   UserWhereUniqueInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserWhereUniqueInput>;
   PostWhereUniqueInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostWhereUniqueInput>;
+  PostCreateWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateWithoutAuthorInput>;
+  PostCreateOrConnectWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateOrConnectWithoutAuthorInput>;
+  PostCreateNestedOneWithoutAuthorInputType: ReturnType<B['inputType']>;
+  PostCreateNestedManyWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateNestedManyWithoutAuthorInput>;
+  UserCreateWithoutPostsInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateWithoutPostsInput>;
+  UserCreateOrConnectWithoutPostsInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateOrConnectWithoutPostsInput>;
+  UserCreateNestedOneWithoutPostsInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateNestedOneWithoutPostsInput>;
+  PostUpdateWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateWithoutAuthorInput>;
+  PostUpdateWithWhereUniqueWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateWithWhereUniqueWithoutAuthorInput>;
+  PostUpdateManyWithWhereWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateManyWithWhereWithoutAuthorInput>;
+  PostUpdateManyWithoutAuthorNestedInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateManyWithoutAuthorNestedInput>;
+  UserUpdateWithoutPostsInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserUpdateWithoutPostsInput>;
+  UserUpdateOneWithoutPostsNestedInputType: ReturnType<B['inputType']>;
+  UserUpdateOneRequiredWithoutPostsNestedInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserUpdateOneRequiredWithoutPostsNestedInput>;
   UserCreateInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateInput>;
   UserUpdateInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserUpdateInput>;
   PostCreateInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateInput>;
@@ -39,7 +61,7 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
 
   const BatchPayloadType = builder.objectRef<{ count: number }>('BatchPayload').implement({
     fields: (t) => ({
-      count: t.int({ resolve: (parent: { count: number }) => parent.count }),
+      count: t.int({ resolve: (parent: { count: number }) => parent.count, nullable: false }),
     }),
   });
 
@@ -263,7 +285,7 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('PostCreateWithoutAuthorInput', {
+  const PostCreateWithoutAuthorInputType = builder.inputType('PostCreateWithoutAuthorInput', {
     fields: (t) => ({
       id: t.string({ required: false }),
       title: t.string({ required: true }),
@@ -272,14 +294,14 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('PostCreateOrConnectWithoutAuthorInput', {
+  const PostCreateOrConnectWithoutAuthorInputType = builder.inputType('PostCreateOrConnectWithoutAuthorInput', {
     fields: (t) => ({
       where: t.field({ type: 'PostWhereUniqueInput', required: true }),
       create: t.field({ type: 'PostCreateWithoutAuthorInput', required: true }),
     }),
   });
 
-  builder.inputType('PostCreateNestedOneWithoutAuthorInput', {
+  const PostCreateNestedOneWithoutAuthorInputType = builder.inputType('PostCreateNestedOneWithoutAuthorInput', {
     fields: (t) => ({
       connect: t.field({ type: 'PostWhereUniqueInput', required: false }),
       create: t.field({ type: 'PostCreateWithoutAuthorInput', required: false }),
@@ -287,7 +309,7 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('PostCreateNestedManyWithoutAuthorInput', {
+  const PostCreateNestedManyWithoutAuthorInputType = builder.inputType('PostCreateNestedManyWithoutAuthorInput', {
     fields: (t) => ({
       create: t.field({ type: ['PostCreateWithoutAuthorInput'], required: false }),
       connect: t.field({ type: ['PostWhereUniqueInput'], required: false }),
@@ -295,7 +317,7 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('UserCreateWithoutPostsInput', {
+  const UserCreateWithoutPostsInputType = builder.inputType('UserCreateWithoutPostsInput', {
     fields: (t) => ({
       id: t.string({ required: false }),
       email: t.string({ required: true }),
@@ -305,14 +327,14 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('UserCreateOrConnectWithoutPostsInput', {
+  const UserCreateOrConnectWithoutPostsInputType = builder.inputType('UserCreateOrConnectWithoutPostsInput', {
     fields: (t) => ({
       where: t.field({ type: 'UserWhereUniqueInput', required: true }),
       create: t.field({ type: 'UserCreateWithoutPostsInput', required: true }),
     }),
   });
 
-  builder.inputType('UserCreateNestedOneWithoutPostsInput', {
+  const UserCreateNestedOneWithoutPostsInputType = builder.inputType('UserCreateNestedOneWithoutPostsInput', {
     fields: (t) => ({
       connect: t.field({ type: 'UserWhereUniqueInput', required: false }),
       create: t.field({ type: 'UserCreateWithoutPostsInput', required: false }),
@@ -320,7 +342,7 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('PostUpdateWithoutAuthorInput', {
+  const PostUpdateWithoutAuthorInputType = builder.inputType('PostUpdateWithoutAuthorInput', {
     fields: (t) => ({
       id: t.string({ required: false }),
       title: t.string({ required: false }),
@@ -329,41 +351,21 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('PostUpdateOneWithoutAuthorNestedInput', {
-    fields: (t) => ({
-      connect: t.field({ type: 'PostWhereUniqueInput', required: false }),
-      disconnect: t.field({ type: 'Boolean', required: false }),
-      create: t.field({ type: 'PostCreateWithoutAuthorInput', required: false }),
-      connectOrCreate: t.field({ type: 'PostCreateOrConnectWithoutAuthorInput', required: false }),
-      update: t.field({ type: 'PostUpdateWithoutAuthorInput', required: false }),
-    }),
-  });
-
-  builder.inputType('PostUpdateOneRequiredWithoutAuthorNestedInput', {
-    fields: (t) => ({
-      connect: t.field({ type: 'PostWhereUniqueInput', required: false }),
-      disconnect: t.field({ type: 'Boolean', required: false }),
-      create: t.field({ type: 'PostCreateWithoutAuthorInput', required: false }),
-      connectOrCreate: t.field({ type: 'PostCreateOrConnectWithoutAuthorInput', required: false }),
-      update: t.field({ type: 'PostUpdateWithoutAuthorInput', required: false }),
-    }),
-  });
-
-  builder.inputType('PostUpdateWithWhereUniqueWithoutAuthorInput', {
+  const PostUpdateWithWhereUniqueWithoutAuthorInputType = builder.inputType('PostUpdateWithWhereUniqueWithoutAuthorInput', {
     fields: (t) => ({
       where: t.field({ type: 'PostWhereUniqueInput', required: true }),
       data: t.field({ type: 'PostUpdateWithoutAuthorInput', required: true }),
     }),
   });
 
-  builder.inputType('PostUpdateManyWithWhereWithoutAuthorInput', {
+  const PostUpdateManyWithWhereWithoutAuthorInputType = builder.inputType('PostUpdateManyWithWhereWithoutAuthorInput', {
     fields: (t) => ({
       where: t.field({ type: 'PostWhereInput', required: true }),
       data: t.field({ type: 'PostUpdateWithoutAuthorInput', required: true }),
     }),
   });
 
-  builder.inputType('PostUpdateManyWithoutAuthorNestedInput', {
+  const PostUpdateManyWithoutAuthorNestedInputType = builder.inputType('PostUpdateManyWithoutAuthorNestedInput', {
     fields: (t) => ({
       create: t.field({ type: ['PostCreateWithoutAuthorInput'], required: false }),
       connect: t.field({ type: ['PostWhereUniqueInput'], required: false }),
@@ -377,7 +379,7 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('UserUpdateWithoutPostsInput', {
+  const UserUpdateWithoutPostsInputType = builder.inputType('UserUpdateWithoutPostsInput', {
     fields: (t) => ({
       id: t.string({ required: false }),
       email: t.string({ required: false }),
@@ -387,7 +389,7 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('UserUpdateOneWithoutPostsNestedInput', {
+  const UserUpdateOneWithoutPostsNestedInputType = builder.inputType('UserUpdateOneWithoutPostsNestedInput', {
     fields: (t) => ({
       connect: t.field({ type: 'UserWhereUniqueInput', required: false }),
       disconnect: t.field({ type: 'Boolean', required: false }),
@@ -397,7 +399,7 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  builder.inputType('UserUpdateOneRequiredWithoutPostsNestedInput', {
+  const UserUpdateOneRequiredWithoutPostsNestedInputType = builder.inputType('UserUpdateOneRequiredWithoutPostsNestedInput', {
     fields: (t) => ({
       connect: t.field({ type: 'UserWhereUniqueInput', required: false }),
       disconnect: t.field({ type: 'Boolean', required: false }),
@@ -449,5 +451,5 @@ export function registerPothosTypes<B extends PothosSchemaTypes.SchemaBuilder<an
     }),
   });
 
-  return { Role, SortOrder, BatchPayloadType, UserOrderByInput, PostOrderByInput, UserWhereInputType, PostWhereInputType, UserFindManyArgs, PostFindManyArgs, UserWhereUniqueInputType, PostWhereUniqueInputType, UserCreateInputType, UserUpdateInputType, PostCreateInputType, PostUpdateInputType } as unknown as { Role: ReturnType<B['enumType']>; SortOrder: ReturnType<B['enumType']>; BatchPayloadType: ObjectRef<BuilderTypes<B>, { count: number }>; UserOrderByInput: InputTypeRef<BuilderTypes<B>, Prisma.UserOrderByWithRelationInput>; PostOrderByInput: InputTypeRef<BuilderTypes<B>, Prisma.PostOrderByWithRelationInput>; UserWhereInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserWhereInput>; PostWhereInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostWhereInput>; UserFindManyArgs: InputTypeRef<BuilderTypes<B>, Prisma.UserFindManyArgs>; PostFindManyArgs: InputTypeRef<BuilderTypes<B>, Prisma.PostFindManyArgs>; UserWhereUniqueInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserWhereUniqueInput>; PostWhereUniqueInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostWhereUniqueInput>; UserCreateInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateInput>; UserUpdateInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserUpdateInput>; PostCreateInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateInput>; PostUpdateInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateInput> };
+  return { Role, SortOrder, BatchPayloadType, UserOrderByInput, PostOrderByInput, UserWhereInputType, PostWhereInputType, UserFindManyArgs, PostFindManyArgs, UserWhereUniqueInputType, PostWhereUniqueInputType, PostCreateWithoutAuthorInputType, PostCreateOrConnectWithoutAuthorInputType, PostCreateNestedOneWithoutAuthorInputType, PostCreateNestedManyWithoutAuthorInputType, UserCreateWithoutPostsInputType, UserCreateOrConnectWithoutPostsInputType, UserCreateNestedOneWithoutPostsInputType, PostUpdateWithoutAuthorInputType, PostUpdateWithWhereUniqueWithoutAuthorInputType, PostUpdateManyWithWhereWithoutAuthorInputType, PostUpdateManyWithoutAuthorNestedInputType, UserUpdateWithoutPostsInputType, UserUpdateOneWithoutPostsNestedInputType, UserUpdateOneRequiredWithoutPostsNestedInputType, UserCreateInputType, UserUpdateInputType, PostCreateInputType, PostUpdateInputType } as unknown as { Role: ReturnType<B['enumType']>; SortOrder: ReturnType<B['enumType']>; BatchPayloadType: ObjectRef<BuilderTypes<B>, { count: number }>; UserOrderByInput: InputTypeRef<BuilderTypes<B>, Prisma.UserOrderByWithRelationInput>; PostOrderByInput: InputTypeRef<BuilderTypes<B>, Prisma.PostOrderByWithRelationInput>; UserWhereInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserWhereInput>; PostWhereInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostWhereInput>; UserFindManyArgs: InputTypeRef<BuilderTypes<B>, Prisma.UserFindManyArgs>; PostFindManyArgs: InputTypeRef<BuilderTypes<B>, Prisma.PostFindManyArgs>; UserWhereUniqueInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserWhereUniqueInput>; PostWhereUniqueInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostWhereUniqueInput>; PostCreateWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateWithoutAuthorInput>; PostCreateOrConnectWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateOrConnectWithoutAuthorInput>; PostCreateNestedOneWithoutAuthorInputType: ReturnType<B['inputType']>; PostCreateNestedManyWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateNestedManyWithoutAuthorInput>; UserCreateWithoutPostsInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateWithoutPostsInput>; UserCreateOrConnectWithoutPostsInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateOrConnectWithoutPostsInput>; UserCreateNestedOneWithoutPostsInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateNestedOneWithoutPostsInput>; PostUpdateWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateWithoutAuthorInput>; PostUpdateWithWhereUniqueWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateWithWhereUniqueWithoutAuthorInput>; PostUpdateManyWithWhereWithoutAuthorInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateManyWithWhereWithoutAuthorInput>; PostUpdateManyWithoutAuthorNestedInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateManyWithoutAuthorNestedInput>; UserUpdateWithoutPostsInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserUpdateWithoutPostsInput>; UserUpdateOneWithoutPostsNestedInputType: ReturnType<B['inputType']>; UserUpdateOneRequiredWithoutPostsNestedInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserUpdateOneRequiredWithoutPostsNestedInput>; UserCreateInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserCreateInput>; UserUpdateInputType: InputTypeRef<BuilderTypes<B>, Prisma.UserUpdateInput>; PostCreateInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostCreateInput>; PostUpdateInputType: InputTypeRef<BuilderTypes<B>, Prisma.PostUpdateInput> };
 }

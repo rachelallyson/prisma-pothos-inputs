@@ -40,7 +40,7 @@ user: t.prismaField({
 
 ## findMany
 
-List with optional filters, ordering, and pagination. Use `refs.ModelFindManyArgs` and spread `args.input` into `findMany`.
+List with optional filters, ordering, and pagination. Use `refs.ModelFindManyArgs` and spread into findMany — it type-checks when your schema’s PrismaTypes and context client use the same types (e.g. same Prisma schema, no `$extends`):
 
 ```ts
 users: t.prismaField({
@@ -48,11 +48,8 @@ users: t.prismaField({
   args: {
     input: t.arg({ type: refs.UserFindManyArgs, required: false }),
   },
-  resolve: (query, _root, args) =>
-    prisma.user.findMany({
-      ...query,
-      ...(args.input ?? {}),
-    }),
+  resolve: (query, _root, args, ctx) =>
+    ctx.prisma.user.findMany({ ...query, ...(args.input ?? {}) }),
 }),
 ```
 
@@ -79,6 +76,26 @@ users: t.prismaField({
 ```
 
 This keeps the same filtering and ordering capabilities without exposing pagination in the API.
+
+### TypeScript: query type and findMany
+
+When your schema’s **PrismaTypes** and the **Prisma client** in context use the same types (same schema, no `$extends`), `{ ...query, ...(args.input ?? {}) }` type-checks with no assertion.
+
+**If you use Prisma client extensions (`$extends`):** the extended client’s types can be out of sync with default PrismaTypes, so you may see “Excessive stack depth.” Two options:
+
+1. **Generate PrismaTypes from your extended client** (recommended) so the plugin types `query` with the extended client’s Select/Include and the spread type-checks with no cast. Run the generator with `--output-prisma-types` and `--extended-prisma-type-path` (path to the module that exports your extended client type). That module must also export: `export type ExtendedPrisma = typeof yourExtendedClient;` Then use the generated file as your SchemaBuilder’s `PrismaTypes`:
+
+   ```bash
+   npx @rachelallyson/prisma-pothos-inputs --schema prisma/schema.prisma \
+     --output-prisma-types src/__generated__/pothos-prisma-types.ts \
+     --extended-prisma-type-path ../db.js \
+     --prisma-client-path ../../generated/prisma/client.js
+   ```
+   (Use a path to the extended-client module relative to the generated file; e.g. `../db.js` when the output is in `src/__generated__/`.)
+
+   In your schema: `import type PrismaTypes from './__generated__/pothos-prisma-types.js';` and pass `PrismaTypes` to the builder. Use the same extended client in context. Then `ctx.prisma.user.findMany({ ...query, ...(args.input ?? {}) })` type-checks.
+
+2. **Cast when spreading:** use the generated `UserFindManyQueryShape` type or `...(query as object)`. See [prisma/prisma#27059](https://github.com/prisma/prisma/issues/27059).
 
 ---
 

@@ -5,9 +5,12 @@
   "scripts": {
     "codegen": "graphql-codegen",
     "generate:inputs": "cd ../.. && npm run build && node dist/bin.js --schema examples/pothos/prisma/schema.prisma --output-pothos examples/pothos/src/__generated__/pothos-inputs.ts --prisma-client-path ../../generated/prisma/client.js --use-relation-inputs",
+    "generate:prisma-types-extended": "cd ../.. && npm run build && node dist/bin.js --schema examples/pothos/prisma/schema.prisma --output-prisma-types examples/pothos/src/__generated__/pothos-prisma-extended.ts --extended-prisma-type-path ../db-extended.js --prisma-client-path ../../generated/prisma/client.js",
     "prisma:generate": "prisma generate",
     "build": "tsc",
     "verify": "tsc --noEmit",
+    "verify:extended": "tsc --noEmit -p tsconfig.verify-extended.json",
+    "repro:stack-depth": "tsc -p tsconfig.repro.json --noEmit",
     "print-schema": "npm run build && node dist/src/print-schema.js",
     "start": "tsx src/server.ts"
   },

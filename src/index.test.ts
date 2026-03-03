@@ -5,6 +5,7 @@ import {
   parsePrismaSchema,
   generatePothosEnums,
   generatePothosSchema,
+  generatePrismaTypesFromExtendedClient,
 } from './index.js';
 
 const schemaWithUserAndPost = `
@@ -151,6 +152,14 @@ describe('generatePothosFromSchema', () => {
       ts.includes('Prisma.UserFindManyArgs') && ts.includes('Prisma.PostFindManyArgs'),
       'FindManyArgs refs should be Prisma-typed for strict typing'
     );
+  });
+
+  it('with prismaClientPath emits FindManyQueryShape type for $extends edge case; direct spread types when PrismaTypes match client', () => {
+    const ts = generatePothosFromSchema(schemaWithUserAndPost, {
+      prismaClientPath: '../../generated/prisma/client.js',
+    });
+    assert.ok(ts.includes('export type UserFindManyQueryShape'), 'should emit UserFindManyQueryShape for $extends cast');
+    assert.ok(!ts.includes('mergeUserFindManyArgs'), 'should not emit merge helper; use { ...query, ...args.input }');
   });
 
   it('without prismaClientPath does not import Prisma', () => {
@@ -633,6 +642,26 @@ describe('generatePothosEnums', () => {
     assert.ok(ts.includes("builder.enumType('Role'"));
     assert.ok(ts.includes("['USER', 'ADMIN']"));
     assert.ok(ts.includes('return { Role }'));
+  });
+});
+
+describe('generatePrismaTypesFromExtendedClient', () => {
+  it('emits PrismaTypes interface with Select/Include/Where from extended client type', () => {
+    const normalized = parsePrismaSchema(schemaWithUserAndPost);
+    const ts = generatePrismaTypesFromExtendedClient(normalized, {
+      prismaClientPath: '../../generated/prisma/client.js',
+      extendedPrismaTypePath: './db.js',
+    });
+    assert.ok(ts.includes("import type { ExtendedPrisma } from './db.js'"));
+    assert.ok(ts.includes("import type { User, Post } from '../../generated/prisma/client.js'"));
+    assert.ok(ts.includes("__UserFindManyArgs") && ts.includes("__UserFindUniqueArgs"));
+    assert.ok(ts.includes("__UserFindManyArgs['select']") || ts.includes("Select: __UserFindManyArgs['select']"));
+    assert.ok(ts.includes("__UserFindManyArgs['include']") || ts.includes("Include: __UserFindManyArgs['include']"));
+    assert.ok(ts.includes("__UserFindUniqueArgs['where']") || ts.includes("WhereUnique: __UserFindUniqueArgs['where']"));
+    assert.ok(ts.includes('RelationName: "posts"'));
+    assert.ok(ts.includes('ListRelations: "posts"'));
+    assert.ok(ts.includes('ListRelations: never'));
+    assert.ok(ts.includes('export default interface PrismaTypes'));
   });
 });
 

@@ -1,11 +1,17 @@
 /**
- * Pothos schema: types (scalars, enums, input types) come from @rachelallyson/prisma-pothos-inputs
- * generated code. This file only wires the builder, Prisma objects, and resolvers.
+ * Example: Pothos schema using an extended Prisma client ($extends) with PrismaTypes
+ * generated from that extended client. This makes findMany({ ...query, ...args.input })
+ * type-check with no assertion.
+ *
+ * Prerequisites:
+ *   1. Run: npm run generate:prisma-types-extended
+ *   2. PrismaTypes come from __generated__/pothos-prisma-extended.ts (derived from db-extended)
+ *   3. Builder and context use the same extended client from db-extended.ts
  */
 import SchemaBuilder from '@pothos/core';
 import PrismaPlugin from '@pothos/plugin-prisma';
-import { prisma } from './db.js';
-import type PrismaTypes from './__generated__/pothos-prisma.js';
+import extendedPrisma from './db-extended.js';
+import type PrismaTypes from './__generated__/pothos-prisma-extended.js';
 import { getDatamodel } from './__generated__/pothos-prisma.js';
 import { registerPothosTypes } from './__generated__/pothos-inputs.js';
 
@@ -17,14 +23,13 @@ const builder = new SchemaBuilder<{
 }>({
   plugins: [PrismaPlugin],
   prisma: {
-    client: prisma,
+    client: extendedPrisma,
     dmmf: getDatamodel(),
   },
 });
 
 const refs = registerPothosTypes(builder);
 
-// Prisma object types (only wiring; shape comes from Prisma)
 builder.prismaObject('User', {
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -49,14 +54,13 @@ builder.prismaObject('Post', {
 
 builder.queryType({
   fields: (t) => ({
-    // User: findUnique, findMany
     user: t.prismaField({
       type: 'User',
       args: {
         where: t.arg({ type: refs.UserWhereUniqueInputType, required: true }),
       },
       resolve: (query, _root, args) =>
-        prisma.user.findUnique({
+        extendedPrisma.user.findUnique({
           ...query,
           where: args.where,
         }),
@@ -66,17 +70,17 @@ builder.queryType({
       args: {
         input: t.arg({ type: refs.UserFindManyArgs, required: false }),
       },
+      // No assertion: PrismaTypes from extended client, so query and findMany types match.
       resolve: (query, _root, args) =>
-        prisma.user.findMany({ ...query, ...(args.input ?? {}) }),
+        extendedPrisma.user.findMany({ ...query, ...(args.input ?? {}) }),
     }),
-    // Post: findUnique, findMany
     post: t.prismaField({
       type: 'Post',
       args: {
         where: t.arg({ type: refs.PostWhereUniqueInputType, required: true }),
       },
       resolve: (query, _root, args) =>
-        prisma.post.findUnique({
+        extendedPrisma.post.findUnique({
           ...query,
           where: args.where,
         }),
@@ -87,21 +91,20 @@ builder.queryType({
         input: t.arg({ type: refs.PostFindManyArgs, required: false }),
       },
       resolve: (query, _root, args) =>
-        prisma.post.findMany({ ...query, ...(args.input ?? {}) }),
+        extendedPrisma.post.findMany({ ...query, ...(args.input ?? {}) }),
     }),
   }),
 });
 
 builder.mutationType({
   fields: (t) => ({
-    // User: createOne, updateOne, deleteOne
     createUser: t.prismaField({
       type: 'User',
       args: {
         data: t.arg({ type: refs.UserCreateInputType, required: true }),
       },
       resolve: async (_query, _root, args) =>
-        prisma.user.create({ data: args.data }),
+        extendedPrisma.user.create({ data: args.data }),
     }),
     updateUser: t.prismaField({
       type: 'User',
@@ -110,7 +113,7 @@ builder.mutationType({
         data: t.arg({ type: refs.UserUpdateInputType, required: true }),
       },
       resolve: async (_query, _root, args) =>
-        prisma.user.update({ where: args.where, data: args.data }),
+        extendedPrisma.user.update({ where: args.where, data: args.data }),
     }),
     deleteUser: t.prismaField({
       type: 'User',
@@ -118,7 +121,7 @@ builder.mutationType({
         where: t.arg({ type: refs.UserWhereUniqueInputType, required: true }),
       },
       resolve: async (_query, _root, args) =>
-        prisma.user.delete({ where: args.where }),
+        extendedPrisma.user.delete({ where: args.where }),
     }),
     updateManyUsers: t.field({
       type: refs.BatchPayloadType,
@@ -127,16 +130,15 @@ builder.mutationType({
         data: t.arg({ type: refs.UserUpdateInputType, required: true }),
       },
       resolve: async (_root, args) =>
-        prisma.user.updateMany({ where: args.where ?? {}, data: args.data }),
+        extendedPrisma.user.updateMany({ where: args.where ?? {}, data: args.data }),
     }),
-    // Post: createOne, updateOne, deleteOne, updateMany
     createPost: t.prismaField({
       type: 'Post',
       args: {
         data: t.arg({ type: refs.PostCreateInputType, required: true }),
       },
       resolve: async (_query, _root, args) =>
-        prisma.post.create({ data: args.data }),
+        extendedPrisma.post.create({ data: args.data }),
     }),
     updatePost: t.prismaField({
       type: 'Post',
@@ -145,7 +147,7 @@ builder.mutationType({
         data: t.arg({ type: refs.PostUpdateInputType, required: true }),
       },
       resolve: async (_query, _root, args) =>
-        prisma.post.update({ where: args.where, data: args.data }),
+        extendedPrisma.post.update({ where: args.where, data: args.data }),
     }),
     deletePost: t.prismaField({
       type: 'Post',
@@ -153,7 +155,7 @@ builder.mutationType({
         where: t.arg({ type: refs.PostWhereUniqueInputType, required: true }),
       },
       resolve: async (_query, _root, args) =>
-        prisma.post.delete({ where: args.where }),
+        extendedPrisma.post.delete({ where: args.where }),
     }),
     updateManyPosts: t.field({
       type: refs.BatchPayloadType,
@@ -162,7 +164,7 @@ builder.mutationType({
         data: t.arg({ type: refs.PostUpdateInputType, required: true }),
       },
       resolve: async (_root, args) =>
-        prisma.post.updateMany({ where: args.where ?? {}, data: args.data }),
+        extendedPrisma.post.updateMany({ where: args.where ?? {}, data: args.data }),
     }),
   }),
 });

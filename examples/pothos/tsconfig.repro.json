@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["src/repro-stack-depth.ts", "src/__generated__/pothos-inputs.ts", "generated/prisma/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
