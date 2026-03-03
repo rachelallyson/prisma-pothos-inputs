@@ -320,6 +320,35 @@ describe('generatePothosFromSchema', () => {
     );
   });
 
+  it('with useRelationInputs does not emit UpdateOne/UpdateOneRequired for list (many-to-many) relations', () => {
+    const schemaManyToMany = `
+      model PeopleGroup {
+        id   String      @id @default(cuid())
+        tags PeopleTag[]
+      }
+      model PeopleTag {
+        id     String        @id @default(cuid())
+        groups PeopleGroup[]
+      }
+    `;
+    const ts = generatePothosFromSchema(schemaManyToMany, {
+      useRelationInputs: true,
+    });
+    // Prisma does not generate these for list relations; only UpdateMany exists
+    assert.ok(
+      !ts.includes('PeopleGroupUpdateOneWithoutTagsNestedInput'),
+      'must not emit UpdateOne for list relation PeopleGroup.tags'
+    );
+    assert.ok(
+      !ts.includes('PeopleGroupUpdateOneRequiredWithoutTagsNestedInput'),
+      'must not emit UpdateOneRequired for list relation PeopleGroup.tags'
+    );
+    assert.ok(
+      ts.includes('PeopleGroupUpdateManyWithoutTagsNestedInput'),
+      'must emit UpdateMany for list relation'
+    );
+  });
+
   it('with includePrismaObjects: true emits builder.prismaObject for each model', () => {
     const ts = generatePothosFromSchema(schemaWithUserAndPost, {
       includePrismaObjects: true,

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-03-03
+
+### Fixed
+
+- **Nested input types and Prisma cardinality** — The generator no longer emits or types nested input refs that Prisma does not generate. UpdateOne/UpdateOneRequired are only emitted for single relations (`!f.isList`); for list (many-to-many) relations only UpdateMany variants are emitted. CreateNestedOne is only added to the Prisma-typed return map when the relation is single; list-relation CreateNestedOne refs remain exported but use the generic input ref return type so `InputTypeRef<..., Prisma.X>` is never asserted for non-existent Prisma types (fixes TS2724).
+
 ## [1.3.0] - 2026-03-03
 
 ### Added
